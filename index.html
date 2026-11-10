@@ -227,6 +227,78 @@ p.lead { color: var(--muted); margin: 0 0 18px; }
 .toast a { color: inherit; font-weight: 700; white-space: nowrap; }
 .loader { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: color-mix(in srgb, var(--paper) 70%, transparent); }
 .loader .spin { width: 38px; height: 38px; border: 4px solid var(--ink); border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+
+/* ============================================================
+   PART 2 · Dashboard boxes + detail sheet
+   ============================================================ */
+.period { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--ink-soft); border-radius: var(--radius-md); padding: 4px; margin: 4px 0 6px; }
+.period button { height: 38px; border: 0; border-radius: var(--radius-sm); background: none; font-weight: 600; font-size: 14px; color: var(--muted); }
+.period button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.period-label { font-size: 13px; color: var(--muted); margin: 0 0 4px; }
+.group-h { font-size: 15px; font-weight: 700; color: var(--muted); margin: 18px 0 8px; }
+.boxes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (min-width: 560px) { .boxes { grid-template-columns: repeat(4, 1fr); } }
+.box {
+  --c: #1F2A6B; position: relative; border: 0; border-radius: var(--radius-lg); background: var(--c); color: #fff;
+  padding: 14px 14px 12px; min-height: 108px; text-align: left; display: flex; flex-direction: column; gap: 2px;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--c) 35%, transparent);
+}
+.box .t { font-size: 13.5px; font-weight: 600; opacity: .92; }
+.box .v { font-size: 24px; font-weight: 800; line-height: 1.15; margin-top: auto; word-break: break-word; }
+.box .s { font-size: 12.5px; opacity: .9; }
+.box.alert::after { content: ""; position: absolute; top: 10px; right: 10px; width: 10px; height: 10px; border-radius: 50%; background: #fff; animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,.8); } 50% { box-shadow: 0 0 0 6px rgba(255,255,255,0); } }
+.box.skel { background: var(--line); box-shadow: none; animation: skel 1.2s ease-in-out infinite; }
+@keyframes skel { 50% { opacity: .55; } }
+
+.sheet-bg { position: fixed; inset: 0; z-index: 40; background: rgba(15, 18, 35, .45); display: flex; align-items: flex-end; justify-content: center; }
+.sheet {
+  background: var(--paper); width: 100%; max-width: 640px; max-height: 88vh; border-radius: 20px 20px 0 0;
+  display: flex; flex-direction: column; animation: up .22s ease-out; padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@keyframes up { from { transform: translateY(40px); opacity: .4; } }
+.sheet header { display: flex; align-items: center; gap: 8px; padding: 12px 12px 10px; border-bottom: 1px solid var(--line); }
+.sheet header h3 { flex: 1; margin: 0; font-size: 18px; }
+.sheet .body { overflow-y: auto; padding: 14px 16px 18px; -webkit-overflow-scrolling: touch; }
+.sheet footer { padding: 10px 16px 14px; border-top: 1px solid var(--line); }
+.wa { background: #1DA851; }
+
+.kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.kpi { background: var(--surface); border-radius: var(--radius-md); padding: 10px 12px; box-shadow: var(--shadow); }
+.kpi small { color: var(--muted); font-size: 12.5px; display: block; }
+.kpi b { font-size: 18px; }
+.pos { color: var(--good); } .neg { color: var(--rule); }
+
+.stmt { background: var(--surface); border-radius: var(--radius-md); box-shadow: var(--shadow); padding: 4px 14px; margin-bottom: 14px; }
+.stmt .r { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--line); }
+.stmt .r:last-child { border-bottom: 0; }
+.stmt .r.sub { padding-left: 14px; color: var(--muted); font-size: 14.5px; }
+.stmt .r.tot { font-weight: 800; border-bottom: 2px solid var(--rule); }
+.stmt .r.tot.last { border-bottom: 0; border-top: 2px solid var(--rule); }
+
+.rows { background: var(--surface); border-radius: var(--radius-md); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 14px; }
+.row { display: flex; gap: 10px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); width: 100%; background: none; border-left: 0; border-right: 0; border-top: 0; text-align: left; }
+.row:last-child { border-bottom: 0; }
+.row .l { flex: 1; min-width: 0; }
+.row .l b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .l small { color: var(--muted); font-size: 13px; }
+.row .rt { text-align: right; flex: none; }
+.row .rt small { display: block; color: var(--muted); font-size: 12.5px; }
+.tag { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 10px; background: var(--ink-soft); color: var(--ink); margin-left: 6px; vertical-align: 1px; }
+.tag.red { background: color-mix(in srgb, var(--rule) 14%, transparent); color: var(--rule); }
+
+.bars { background: var(--surface); border-radius: var(--radius-md); box-shadow: var(--shadow); padding: 12px 14px; margin-bottom: 14px; }
+.bar { margin: 8px 0; }
+.bar .top { display: flex; justify-content: space-between; font-size: 14.5px; }
+.bar .track { height: 8px; background: var(--ink-soft); border-radius: 4px; margin-top: 4px; overflow: hidden; }
+.bar .fill { height: 100%; background: var(--ink); border-radius: 4px; }
+.chart { display: flex; align-items: flex-end; gap: 6px; height: 120px; padding: 6px 2px 0; }
+.chart .c { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
+.chart .c i { width: 100%; max-width: 28px; border-radius: 4px 4px 0 0; background: var(--ink); min-height: 2px; }
+.chart .c i.neg { background: var(--rule); }
+.chart .c span { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.sec-h { font-size: 15px; font-weight: 700; margin: 6px 0 8px; }
+.dates { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 </style>
 </head>
 <body>
@@ -253,7 +325,7 @@ p.lead { color: var(--muted); margin: 0 0 18px; }
    CONFIG — change only these lines
    ============================================================ */
 const API_URL = 'https://script.google.com/macros/s/AKfycbyRQlBtN7w2Ve2zpR-1s0uqHc1a_8XGPGttVcCZvseo4KGykTuFPPNK6VR9IokVmSLL/exec';
-const APP_VERSION = '1.0-p1';
+const APP_VERSION = '1.0-p2';
 const SUPPORT_WHATSAPP = '';   // e.g. '919xxxxxxxxx' — shown as "Need help?" on login
 // YouTube help links per screen (update when videos are recorded)
 const HELP = {
@@ -378,7 +450,7 @@ function render() {
   window.scrollTo(0, 0);
   ({ home: renderHome, entry: renderEntry, history: renderHistory, reports: renderReports, settings: renderSettings, setup: renderSetup })[r]();
 }
-window.addEventListener('hashchange', render);
+window.addEventListener('hashchange', () => { closeSheet(); render(); });
 
 function updateTopbar() {
   const c = S.cfg;
@@ -599,21 +671,279 @@ async function refreshConfig() { loading(true); const r = await api('getConfig')
    HOME (dashboard arrives in Part 2)
    ============================================================ */
 function renderHome() {
-  const L = S.cfg.labels;
   const left = S.business ? daysLeft(S.business.expiry) : null;
+  S.period = S.period || 'thisMonth';
   view.innerHTML = `
     ${planStrip(left)}
     <h1>Vanakkam, ${esc((S.user.name || '').split(' ')[0])}</h1>
-    <p class="lead">${isOwner() ? 'Your colour dashboard will appear here.' : 'Tap + to add today\'s entries.'}</p>
-    <div class="ledger">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div><small style="color:var(--muted)">Industry</small><div><b>${esc(S.cfg.setup.industry)}</b></div></div>
-        <div><small style="color:var(--muted)">Tracking by</small><div><b>${esc(L.job)} · ${esc(L.unit)}</b></div></div>
-        <div><small style="color:var(--muted)">Processes</small><div><b>${S.cfg.processes.length}</b></div></div>
-        <div><small style="color:var(--muted)">Expense heads</small><div><b>${S.cfg.categories.order.length + S.cfg.categories.general.length}</b></div></div>
+    ${isOwner() ? `
+      <div class="period" id="period" role="group" aria-label="Period">
+        ${[['thisWeek','Week'],['thisMonth','Month'],['lastMonth','Last month'],['custom','Dates']]
+          .map(([k, l]) => `<button data-p="${k}" aria-pressed="${S.period === k}">${l}</button>`).join('')}
       </div>
+      <p class="period-label" id="periodLabel">&nbsp;</p>` : `<p class="lead">Tap + to add today's entries.</p>`}
+    <div id="dash">${skeleton(isOwner() ? 12 : 3)}</div>`;
+  if (isOwner()) $('#period').onclick = e => {
+    const b = e.target.closest('[data-p]'); if (!b) return;
+    if (b.dataset.p === 'custom') return pickDates();
+    S.period = b.dataset.p; S.from = S.to = null; renderHome();
+  };
+  loadDashboard();
+}
+
+function skeleton(n) { return `<div class="boxes">${Array.from({ length: n }, () => '<div class="box skel"></div>').join('')}</div>`; }
+function periodPayload() { return { period: S.period, from: S.from, to: S.to }; }
+
+const BOX_COLORS = { blue: '#1C64F2', green: '#15803D', orange: '#D9480F', red: '#C62839', darkgreen: '#166534', purple: '#7B2CBF',
+                     yellow: '#A16207', teal: '#0F766E', indigo: '#3B4CCA', pink: '#BE185D', sky: '#0369A1', grey: '#475569' };
+const GROUPS = [['Money', ['sales','gross','opex','net']], [null, ['running','loss','due','completed']], ['Cost control', ['labour','overhead','quotes','gst']]];
+
+async function loadDashboard() {
+  const r = await api('dashboard', periodPayload());
+  const dash = $('#dash'); if (!dash || !r.ok) return;
+  S.dash = r.data;
+  if ($('#periodLabel')) $('#periodLabel').textContent = r.data.period ? r.data.period + (S.period === 'custom' ? '' : ' so far') : '';
+  const boxHtml = b => `<button class="box ${b.alert ? 'alert' : ''}" style="--c:${BOX_COLORS[b.color] || '#1F2A6B'}" data-key="${b.key}" data-detail="${b.detail}">
+      <span class="t">${esc(b.title)}</span><span class="v">${esc(b.value)}</span><span class="s">${esc(b.sub)}</span></button>`;
+  if (r.data.staff) { dash.innerHTML = `<div class="boxes">${r.data.boxes.map(boxHtml).join('')}</div>`; }
+  else {
+    const byKey = {}; r.data.boxes.forEach(b => byKey[b.key] = b);
+    GROUPS[1][0] = r.data.labels.jobs;
+    dash.innerHTML = GROUPS.map(([h, keys]) => `<div class="group-h">${esc(h)}</div><div class="boxes">${keys.map(k => byKey[k] ? boxHtml(byKey[k]) : '').join('')}</div>`).join('');
+  }
+  dash.onclick = e => { const b = e.target.closest('[data-key]'); if (b) openDetail(b.dataset.key, b.dataset.detail); };
+}
+
+function pickDates() {
+  const today = new Date().toISOString().slice(0, 10);
+  openSheet('Choose dates', `
+    <div class="dates">
+      <div class="field"><label for="dFrom">From</label><input id="dFrom" type="date" class="input" max="${today}" value="${S.from || today.slice(0, 8) + '01'}"></div>
+      <div class="field"><label for="dTo">To</label><input id="dTo" type="date" class="input" max="${today}" value="${S.to || today}"></div>
     </div>
-    <div style="margin-top:16px"><button class="btn" onclick="go('entry')">${ICON.plus} New entry</button></div>`;
+    <button class="btn" id="dApply">Show report</button>`);
+  $('#dApply').onclick = () => {
+    const f = $('#dFrom').value, t = $('#dTo').value;
+    if (!f || !t || f > t) return toast('Choose a valid date range.', 'err');
+    S.period = 'custom'; S.from = f; S.to = t; closeSheet(); renderHome();
+  };
+}
+
+/* ---------- Bottom sheet with back stack ---------- */
+const SHEET = { stack: [] };
+function openSheet(title, html, share, push) {
+  if (!push) SHEET.stack = [];
+  SHEET.stack.push({ title, html, share });
+  drawSheet();
+}
+function drawSheet() {
+  const top = SHEET.stack[SHEET.stack.length - 1];
+  let bg = $('#sheetBg');
+  if (!bg) {
+    bg = document.createElement('div'); bg.id = 'sheetBg'; bg.className = 'sheet-bg';
+    bg.onclick = e => { if (e.target === bg) closeSheet(); };
+    document.body.appendChild(bg); document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', escClose);
+  }
+  bg.innerHTML = `<section class="sheet" role="dialog" aria-modal="true" aria-label="${esc(top.title)}">
+    <header>
+      ${SHEET.stack.length > 1 ? '<button class="icon-btn" id="sBack" aria-label="Back">‹</button>' : ''}
+      <h3>${esc(top.title)}</h3>
+      <button class="icon-btn" id="sClose" aria-label="Close">✕</button>
+    </header>
+    <div class="body">${top.html}</div>
+    ${top.share ? `<footer><button class="btn wa" id="sShare">${ICON.chat} Share on WhatsApp</button></footer>` : ''}
+  </section>`;
+  $('#sClose').onclick = closeSheet;
+  if ($('#sBack')) $('#sBack').onclick = () => { SHEET.stack.pop(); drawSheet(); };
+  if ($('#sShare')) $('#sShare').onclick = () => window.open('https://wa.me/?text=' + encodeURIComponent(top.share), '_blank', 'noopener');
+  bg.querySelectorAll('[data-job]').forEach(el => el.onclick = () => openOrderCost(el.dataset.job));
+}
+function closeSheet() { const bg = $('#sheetBg'); if (bg) bg.remove(); document.body.style.overflow = ''; SHEET.stack = []; document.removeEventListener('keydown', escClose); }
+function escClose(e) { if (e.key === 'Escape') closeSheet(); }
+function sheetLoading(title) { openSheet(title, '<div style="display:grid;place-items:center;padding:40px"><div class="spin" style="width:32px;height:32px;border:4px solid var(--ink);border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite"></div></div>'); }
+
+/* ---------- Formatting ---------- */
+function inr(n) {
+  if (n === null || n === undefined || n === '') return '—';
+  const v = Math.round(Number(n) * 100) / 100;
+  const dec = Number.isInteger(v) ? 0 : 2;
+  return (v < 0 ? '-₹' : '₹') + Math.abs(v).toLocaleString('en-IN', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+function signCls(n) { return Number(n) < 0 ? 'neg' : 'pos'; }
+function shareHead(title) { return '*' + ((S.cfg && S.cfg.setup.businessName) || 'CostingPlus') + '*\n_' + title + '_ · ' + ((S.dash && S.dash.period) || '') + '\n'; }
+
+/* ---------- Detail router ---------- */
+async function openDetail(key, detail) {
+  const L = (S.dash && S.dash.labels) || S.cfg.labels;
+  const titles = { sales: 'Sales', gross: 'Profit by ' + L.job.toLowerCase(), opex: 'Operating expenses', net: 'Profit & loss',
+    running: 'Running ' + L.jobs.toLowerCase(), loss: 'Loss ' + L.jobs.toLowerCase(), due: 'Delivery due', completed: 'Completed ' + L.jobs.toLowerCase(),
+    labour: 'Labour wages', overhead: 'Overhead per ' + L.unit, quotes: 'Quotes', gst: 'Pending GST bills', myEntries: 'My entries today' };
+  const title = titles[key] || 'Details';
+  if (key === 'myEntries') return toast('Your entries list comes with the History update.');
+  sheetLoading(title);
+
+  if (key === 'due' || (!isOwner() && key === 'running')) {
+    const r = await api('listJobs', { status: 'Running', limit: 200 });
+    if (!r.ok) return closeSheet();
+    let items = r.data.items;
+    if (key === 'due') {
+      const lim = new Date(); lim.setDate(lim.getDate() + 7);
+      items = items.filter(j => j.deliveryDate && new Date(j.deliveryDate) <= lim).sort((a, b) => a.deliveryDate < b.deliveryDate ? -1 : 1);
+    }
+    return openSheet(title, dueHtml(items, L), items.length ? shareHead(title) + items.map(j => `${j.jobId} · ${j.customer} · ${j.item} · due ${fmtDate(j.deliveryDate)}${j.overdue ? ' (LATE)' : ''}`).join('\n') : '');
+  }
+  if (detail === 'quotes') {
+    const r = await api('listQuotes', Object.assign({ status: 'All' }, periodPayload()));
+    if (!r.ok) return closeSheet();
+    return openSheet(title, quotesHtml(r.data));
+  }
+  const r = await api('report', Object.assign({ type: detail }, periodPayload()));
+  if (!r.ok) return closeSheet();
+  const d = r.data;
+  if (detail === 'sales') return openSheet(title, salesHtml(d), shareHead('Sales') + 'Total: ' + inr(d.total) + '\n' + d.items.map(i => `${i.jobId} ${i.customer}: ${inr(i.amount)}`).join('\n'));
+  if (detail === 'orders') {
+    const filt = { running: x => x.status === 'Running', loss: x => x.loss, completed: x => x.status === 'Closed' }[key] || (() => true);
+    const items = d.items.filter(filt);
+    return openSheet(title, ordersHtml(items, L, key), shareHead(title) + items.map(o => `${o.jobId} ${o.customer}: cost ${inr(o.costPerUnit)}/${L.unit}, profit ${inr(o.profit)}${o.isEstimate ? ' (est.)' : ''}`).join('\n'));
+  }
+  if (detail === 'expenses') return openSheet(title, expensesHtml(d, L, key), shareHead(title) + d.operating.map(x => x.name + ': ' + inr(x.amount)).join('\n') + '\nTotal: ' + inr(d.operatingTotal) + (d.overheadPerUnit ? '\nOverhead/' + L.unit + ': ' + inr(d.overheadPerUnit) : ''));
+  if (detail === 'pnl') {
+    const t = await api('report', { type: 'trend', by: 'month', count: 6 }, { silent: true });
+    return openSheet(title, pnlHtml(d, t.ok ? t.data.items : []), shareHead('Profit & Loss') +
+      `Sales: ${inr(d.sales)}\nOrder cost: ${inr(d.orderCost)}\nGross profit: ${inr(d.gross)} (${d.grossPct}%)\nOperating expenses: ${inr(d.opex)}\n*Net profit: ${inr(d.net)} (${d.netPct}%)*`);
+  }
+  if (detail === 'labour') return openSheet(title, labourHtml(d), shareHead(title) + d.byWorker.map(w => `${w.name}: earned ${inr(w.amount)}, pending ${inr(w.payable)}, advance ${inr(w.advanceOutstanding)}`).join('\n'));
+  if (detail === 'gstPending') return openSheet(title, gstHtml(d), shareHead(title) + d.items.map(b => `${fmtDate(b.date)} ${b.party || '-'} #${b.billNo || '-'}: ${inr(b.total)}`).join('\n'));
+  closeSheet();
+}
+
+async function openOrderCost(jobId) {
+  const r = await api('report', { type: 'orderCost', jobId });
+  if (!r.ok) return;
+  const c = r.data, L = c.labels;
+  const line = (a, b, cls = '') => `<div class="r ${cls}"><span>${a}</span><span>${b}</span></div>`;
+  const html = `
+    <div style="margin-bottom:10px"><b style="font-size:17px">${esc(c.customer)}</b> <span class="tag">${esc(c.status)}</span><br>
+      <span style="color:var(--muted)">${esc(c.item)} · ${c.qty} ${esc(c.unit || L.unit)}${c.deliveryDate ? ' · due ' + fmtDate(c.deliveryDate) : ''}</span></div>
+    <div class="kpis">
+      <div class="kpi"><small>Cost / ${esc(L.unit)}</small><b>${inr(c.costPerUnit)}</b></div>
+      <div class="kpi"><small>Price / ${esc(L.unit)}</small><b>${inr(c.sellingPrice)}</b></div>
+      <div class="kpi"><small>Profit${c.isEstimate ? ' (estimate)' : ''}</small><b class="${signCls(c.profit)}">${inr(c.profit)}</b></div>
+      <div class="kpi"><small>Margin</small><b class="${signCls(c.marginPct)}">${c.marginPct === null ? '—' : c.marginPct + '%'}</b></div>
+    </div>
+    ${c.lossReason ? `<p class="neg" style="margin:0 0 12px"><b>${esc(c.lossReason)}</b></p>` : ''}
+    <div class="sec-h">Cost breakdown</div>
+    <div class="stmt">
+      ${line('<b>Material & expenses</b>', '<b>' + inr(c.material) + '</b>')}
+      ${c.materialHeads.map(h => line(esc(h.name), inr(h.amount), 'sub')).join('')}
+      ${line('<b>Labour</b>', '<b>' + inr(c.labour) + '</b>')}
+      ${c.labourHeads.map(h => line(esc(h.name), inr(h.amount), 'sub')).join('')}
+      ${c.overhead ? line('<b>Overhead share</b>', '<b>' + inr(c.overhead) + '</b>') : ''}
+      ${line('Total cost', inr(c.totalCost), 'tot last')}
+    </div>
+    <div class="sec-h">Sales</div>
+    <div class="stmt">
+      ${line('Dispatched', c.dispatchedQty + ' of ' + c.qty + ' ' + esc(L.unit))}
+      ${line('Sales so far', inr(c.sales))}
+      ${c.isEstimate ? line('Expected sales (full order)', inr(c.expectedSales)) : ''}
+    </div>`;
+  const share = shareHead(L.job + ' ' + c.jobId + ' costing') +
+    `${c.customer} · ${c.item} · ${c.qty} ${L.unit}\nMaterial: ${inr(c.material)}\nLabour: ${inr(c.labour)}\n${c.overhead ? 'Overhead: ' + inr(c.overhead) + '\n' : ''}Total cost: ${inr(c.totalCost)}\n*Cost/${L.unit}: ${inr(c.costPerUnit)}* · Price: ${inr(c.sellingPrice)}\nProfit: ${inr(c.profit)}${c.isEstimate ? ' (estimate)' : ''}`;
+  openSheet(L.job + ' ' + c.jobId, html, share, true);
+}
+
+/* ---------- Detail HTML builders ---------- */
+function emptyMsg(t) { return `<div class="empty"><p>${esc(t)}</p></div>`; }
+
+function salesHtml(d) {
+  if (!d.items.length) return emptyMsg('No dispatch in this period yet.');
+  return `<div class="kpis"><div class="kpi"><small>Total sales</small><b>${inr(d.total)}</b></div>
+      <div class="kpi"><small>${esc(d.labels.jobs)}</small><b>${d.items.length}</b></div></div>
+    <div class="sec-h">By ${esc(d.labels.job.toLowerCase())}</div>
+    <div class="rows">${d.items.map(i => `<button class="row" data-job="${esc(i.jobId)}"><span class="l"><b>${esc(i.jobId)} · ${esc(i.customer)}</b><small>${esc(i.item)} · ${i.qty} ${esc(d.labels.unit)}</small></span><span class="rt"><b>${inr(i.amount)}</b></span></button>`).join('')}</div>
+    ${d.byCustomer.length > 1 ? `<div class="sec-h">By customer</div>${barsHtml(d.byCustomer)}` : ''}`;
+}
+
+function ordersHtml(items, L, key) {
+  if (!items.length) return emptyMsg(key === 'loss' ? 'No loss-making ' + L.jobs.toLowerCase() + '. Good going!' : 'Nothing to show for this period.');
+  return `<p style="color:var(--muted);margin:0 0 10px;font-size:14px">Tap any ${esc(L.job.toLowerCase())} for full costing. "Estimate" = running, based on expected sales.</p>
+    <div class="rows">${items.map(o => `<button class="row" data-job="${esc(o.jobId)}">
+      <span class="l"><b>${esc(o.jobId)} · ${esc(o.customer)}${o.isEstimate ? '<span class="tag">Estimate</span>' : ''}${o.loss ? '<span class="tag red">Loss</span>' : ''}</b>
+        <small>${esc(o.item)} · cost ${inr(o.costPerUnit)} / price ${inr(o.sellingPrice)}</small>
+        ${o.lossReason ? `<small class="neg" style="display:block">${esc(o.lossReason)}</small>` : ''}</span>
+      <span class="rt"><b class="${signCls(o.profit)}">${inr(o.profit)}</b><small>${o.marginPct === null ? '' : o.marginPct + '%'}</small></span></button>`).join('')}</div>`;
+}
+
+function barsHtml(list) {
+  const max = Math.max(...list.map(x => Math.abs(x.amount)), 1);
+  return `<div class="bars">${list.map(x => `<div class="bar"><div class="top"><span>${esc(x.name)}</span><b>${inr(x.amount)}</b></div>
+    <div class="track"><div class="fill" style="width:${Math.max(2, Math.abs(x.amount) * 100 / max)}%"></div></div></div>`).join('')}</div>`;
+}
+
+function chartHtml(items, field) {
+  if (!items || !items.length) return '';
+  const max = Math.max(...items.map(t => Math.abs(t[field])), 1);
+  return `<div class="bars"><div class="chart">${items.map(t => `<div class="c" title="${esc(t.label)}: ${inr(t[field])}">
+    <i class="${t[field] < 0 ? 'neg' : ''}" style="height:${Math.abs(t[field]) * 100 / max}%"></i><span>${esc(t.label)}</span></div>`).join('')}</div></div>`;
+}
+
+function expensesHtml(d, L, key) {
+  return `<div class="kpis"><div class="kpi"><small>Operating total</small><b>${inr(d.operatingTotal)}</b></div>
+      <div class="kpi"><small>Overhead / ${esc(L.unit)}</small><b>${d.overheadPerUnit === null ? '—' : inr(d.overheadPerUnit)}</b></div></div>
+    ${key === 'overhead' ? `<p style="color:var(--muted);font-size:14px;margin:0 0 12px">Overhead per ${esc(L.unit)} = operating expenses ÷ ${esc(L.unit)} dispatched in this period.</p>` : ''}
+    <div class="sec-h">Operating expenses</div>
+    ${d.operating.length ? barsHtml(d.operating) : emptyMsg('No general expenses in this period.')}
+    <div class="sec-h">Weekly trend</div>${chartHtml(d.trend, 'opex')}
+    ${d.orderMaterial.length ? `<div class="sec-h">${esc(L.job)} material & expenses</div>${barsHtml(d.orderMaterial)}` : ''}`;
+}
+
+function pnlHtml(d, trend) {
+  const line = (a, b, cls = '') => `<div class="r ${cls}"><span>${a}</span><span>${b}</span></div>`;
+  return `<div class="stmt">
+      ${line('Sales', inr(d.sales))}
+      ${line('Material & expenses', '− ' + inr(d.orderMaterial), 'sub')}
+      ${line('Labour', '− ' + inr(d.orderLabour), 'sub')}
+      ${line('Gross profit <small>(' + d.grossPct + '%)</small>', `<span class="${signCls(d.gross)}">${inr(d.gross)}</span>`, 'tot')}
+      ${d.opexBreakdown.map(x => line(esc(x.name), '− ' + inr(x.amount), 'sub')).join('')}
+      ${line('Operating expenses', '− ' + inr(d.opex))}
+      ${line('Net profit <small>(' + d.netPct + '%)</small>', `<span class="${signCls(d.net)}">${inr(d.net)}</span>`, 'tot last')}
+    </div>
+    ${d.overheadPerUnit !== null ? `<p style="color:var(--muted);font-size:14px">${d.dispatchedQty} ${esc(d.labels.unit)} dispatched · overhead ${inr(d.overheadPerUnit)} per ${esc(d.labels.unit)}</p>` : ''}
+    <p style="color:var(--muted);font-size:13.5px">${d.gstRegistered ? 'GST on purchases is not counted as cost (claimable).' : 'GST on purchases is counted as cost (no GST number in setup).'}</p>
+    ${trend.length ? `<div class="sec-h">Net profit · last 6 months</div>${chartHtml(trend, 'net')}` : ''}`;
+}
+
+function labourHtml(d) {
+  return `<div class="kpis"><div class="kpi"><small>Total wages earned</small><b>${inr(d.total)}</b></div>
+      <div class="kpi"><small>For ${esc(d.labels.jobs.toLowerCase())} / general</small><b style="font-size:15px">${inr(d.orderLabour)} / ${inr(d.generalLabour)}</b></div></div>
+    <div class="sec-h">By worker</div>
+    ${d.byWorker.length ? `<div class="rows">${d.byWorker.map(w => `<div class="row"><span class="l"><b>${esc(w.name)}</b>
+      <small>Pending ${inr(w.payable)} · Advance ${inr(w.advanceOutstanding)}</small></span><span class="rt"><b>${inr(w.amount)}</b><small>earned</small></span></div>`).join('')}</div>` : emptyMsg('No wage entries in this period.')}
+    ${d.byProcess.length ? `<div class="sec-h">By process</div>${barsHtml(d.byProcess)}` : ''}`;
+}
+
+function quotesHtml(d) {
+  return `<div class="kpis"><div class="kpi"><small>Sent</small><b>${d.total}</b></div><div class="kpi"><small>Won</small><b class="pos">${d.won}</b></div>
+      <div class="kpi"><small>Pending</small><b>${d.pending}</b></div><div class="kpi"><small>Win rate</small><b>${d.winRatePct === null ? '—' : d.winRatePct + '%'}</b></div></div>
+    ${d.items.length ? `<div class="rows">${d.items.map(q => `<div class="row"><span class="l"><b>${esc(q.quoteId)} · ${esc(q.customer)}
+      <span class="tag ${q.status === 'Lost' || q.expired ? 'red' : ''}">${q.expired ? 'Expired' : esc(q.status)}</span></b>
+      <small>${esc(q.item)} · ${q.qty} @ ${inr(q.quotePrice)} · margin ${q.marginPct}%</small></span><span class="rt"><b>${inr(q.totalValue)}</b></span></div>`).join('')}</div>` : emptyMsg('No quotes in this period.')}`;
+}
+
+function gstHtml(d) {
+  if (!d.items.length) return emptyMsg('All GST bills received.');
+  return `<div class="kpis"><div class="kpi"><small>Bills pending</small><b>${d.count}</b></div><div class="kpi"><small>Bill value</small><b>${inr(d.total)}</b></div></div>
+    <div class="sec-h">By supplier</div>${barsHtml(d.byParty)}
+    <div class="sec-h">Bills</div>
+    <div class="rows">${d.items.map(b => `<div class="row"><span class="l"><b>${esc(b.party || 'No supplier')}</b><small>${fmtDate(b.date)} · bill ${esc(b.billNo || '-')} · GST ${inr(b.gst)}</small></span><span class="rt"><b>${inr(b.total)}</b></span></div>`).join('')}</div>`;
+}
+
+function dueHtml(items, L) {
+  if (!items.length) return emptyMsg('No deliveries due in the next 7 days.');
+  return `<div class="rows">${items.map(j => `<div class="row"><span class="l"><b>${esc(j.jobId)} · ${esc(j.customer)}</b>
+    <small>${esc(j.item)} · ${j.qty} ${esc(j.unit || L.unit)}</small></span>
+    <span class="rt"><b class="${j.overdue ? 'neg' : ''}">${fmtDate(j.deliveryDate)}</b><small>${j.overdue ? 'Late' : 'Due'}</small></span></div>`).join('')}</div>`;
 }
 
 function planStrip(left) {
