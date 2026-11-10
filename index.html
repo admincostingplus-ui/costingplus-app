@@ -299,6 +299,45 @@ p.lead { color: var(--muted); margin: 0 0 18px; }
 .chart .c span { font-size: 11px; color: var(--muted); white-space: nowrap; }
 .sec-h { font-size: 15px; font-weight: 700; margin: 6px 0 8px; }
 .dates { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* ============================================================
+   PART 3a · Expense / Split Bill form
+   ============================================================ */
+.form-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.form-top h1 { flex: 1; margin: 0; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.seg3 { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--ink-soft); border-radius: var(--radius-md); padding: 4px; gap: 4px; }
+.seg3 button { height: 40px; border: 0; border-radius: var(--radius-sm); background: none; font-weight: 600; color: var(--muted); }
+.seg3 button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+select.input { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 22px, calc(100% - 15px) 22px; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 34px; }
+.input.sm { height: 44px; font-size: 16px; }
+.xrow { background: var(--surface); border-radius: var(--radius-md); box-shadow: var(--shadow); padding: 12px; margin-bottom: 10px; border-left: 4px solid var(--ink); }
+.xrow.general { border-left-color: var(--turmeric); }
+.xrow .head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.xrow .head .n { font-weight: 700; color: var(--muted); font-size: 14px; }
+.xrow .head .seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--ink-soft); border-radius: 10px; padding: 3px; flex: 1; }
+.xrow .head .seg button { height: 34px; border: 0; border-radius: 8px; background: none; font-weight: 600; font-size: 14px; color: var(--muted); }
+.xrow .head .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); }
+.xrow .del { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: none; color: var(--rule); font-size: 18px; }
+.xrow .f { margin-bottom: 8px; }
+.xrow .f label { font-size: 13px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 3px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.xrow .tot { display: flex; justify-content: space-between; font-size: 14.5px; color: var(--muted); margin-top: 4px; }
+.xrow .tot b { color: var(--text); font-size: 16px; }
+.add-row { width: 100%; height: 48px; border: 2px dashed var(--line); border-radius: var(--radius-md); background: none; color: var(--ink); font-weight: 700; margin-bottom: 12px; }
+.sticky-foot {
+  position: sticky; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); z-index: 5;
+  background: var(--surface); border-radius: var(--radius-lg) var(--radius-lg) 0 0; box-shadow: 0 -4px 16px rgba(31,42,107,.10);
+  padding: 12px 14px; margin: 0 -16px -24px;
+}
+.sticky-foot .sum { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.sticky-foot .sum b { font-size: 22px; }
+.match { font-size: 14px; margin-bottom: 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.match.ok { color: var(--good); } .match.bad { color: var(--rule); }
+.match select { height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); padding: 0 8px; font-size: 14px; }
+.linkbtn { border: 0; background: none; color: var(--ink); font-weight: 700; padding: 0; text-decoration: underline; }
+.rate-hint { font-size: 12px; color: var(--good); margin-top: 2px; min-height: 14px; }
 </style>
 </head>
 <body>
@@ -325,11 +364,11 @@ p.lead { color: var(--muted); margin: 0 0 18px; }
    CONFIG — change only these lines
    ============================================================ */
 const API_URL = 'https://script.google.com/macros/s/AKfycbyRQlBtN7w2Ve2zpR-1s0uqHc1a_8XGPGttVcCZvseo4KGykTuFPPNK6VR9IokVmSLL/exec';
-const APP_VERSION = '1.0-p2';
+const APP_VERSION = '1.0-p3a';
 const SUPPORT_WHATSAPP = '';   // e.g. '919xxxxxxxxx' — shown as "Need help?" on login
 // YouTube help links per screen (update when videos are recorded)
 const HELP = {
-  login: '', setup: '', home: '', entry: '', history: '', reports: '', settings: ''
+  login: '', setup: '', home: '', entry: '', expense: '', history: '', reports: '', settings: ''
 };
 
 /* ============================================================
@@ -426,7 +465,7 @@ function buildTabbar() {
 
 function go(route) { if (location.hash !== '#' + route) location.hash = route; else render(); }
 
-const ROUTES = ['home', 'entry', 'history', 'reports', 'settings', 'setup'];
+const ROUTES = ['home', 'entry', 'history', 'reports', 'settings', 'setup', 'expense'];
 function render() {
   if (!S.token) return renderLogin();
   if (!S.cfg) { loading(true); return; }
@@ -445,10 +484,11 @@ function render() {
   S.route = r;
   $('#topbar').classList.remove('hidden');
   $('#tabbar').classList.toggle('hidden', r === 'setup' && !S.cfg.setup.setupDone);
-  document.querySelectorAll('#tabbar [data-go]').forEach(b => b.setAttribute('aria-current', b.dataset.go === r ? 'page' : 'false'));
+  const tabKey = ['expense'].indexOf(r) !== -1 ? 'entry' : r;
+  document.querySelectorAll('#tabbar [data-go]').forEach(b => b.setAttribute('aria-current', b.dataset.go === tabKey ? 'page' : 'false'));
   updateTopbar();
   window.scrollTo(0, 0);
-  ({ home: renderHome, entry: renderEntry, history: renderHistory, reports: renderReports, settings: renderSettings, setup: renderSetup })[r]();
+  ({ home: renderHome, entry: renderEntry, history: renderHistory, reports: renderReports, settings: renderSettings, setup: renderSetup, expense: () => renderExpenseForm(S.editBill) })[r]();
 }
 window.addEventListener('hashchange', () => { closeSheet(); render(); });
 
@@ -971,7 +1011,11 @@ function renderEntry() {
     <h1>New entry</h1>
     <p class="lead">What do you want to add?</p>
     <div class="tiles">${tiles.map(t => `<button class="tile ${t[1]}" data-form="${t[0]}">${t[2]}<div><b>${t[3]}</b><small>${t[4]}</small></div></button>`).join('')}</div>`;
-  view.querySelector('.tiles').onclick = e => { const b = e.target.closest('[data-form]'); if (b) toast(b.querySelector('b').textContent + ' form comes in the next update.'); };
+  view.querySelector('.tiles').onclick = e => {
+    const b = e.target.closest('[data-form]'); if (!b) return;
+    if (b.dataset.form === 'Expense') { S.editBill = null; return go('expense'); }
+    toast(b.querySelector('b').textContent + ' form comes in the next update.');
+  };
 }
 
 function renderHistory() {
@@ -1009,6 +1053,253 @@ function renderSettings() {
     if (a === 'masters') toast('Masters screen comes in a later update.');
     if (a === 'help') toast('Help videos will be added soon.');
   };
+}
+
+
+/* ============================================================
+   SHARED: masters + running orders (cached 5 min)
+   ============================================================ */
+async function loadLookups(force) {
+  if (!force && S.lookups && Date.now() - S.lookups.at < 300000) return S.lookups;
+  const [m, j] = await Promise.all([api('getMasters', {}, { silent: true }), api('jobOptions', {}, { silent: true })]);
+  if (!m.ok || !j.ok) { toast('Could not load lists. Check internet and try again.', 'err'); return null; }
+  S.lookups = { at: Date.now(), parties: m.data.parties, categories: m.data.categories, processes: m.data.processes, jobs: j.data };
+  return S.lookups;
+}
+function todayIso() { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+function num(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+function r2(n) { return Math.round(n * 100) / 100; }
+
+/** Inline "add new party" sheet → resolves with the saved name (or null) */
+function addPartySheet(type) {
+  return new Promise(resolve => {
+    openSheet('Add ' + type.toLowerCase(), `
+      <div class="field"><label for="npName">Name</label><input id="npName" class="input" maxlength="80"></div>
+      <div class="field"><label for="npPhone">Phone <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+        <input id="npPhone" class="input" type="tel" inputmode="numeric" maxlength="10"></div>
+      ${type === 'Vendor' ? `<div class="field"><label for="npGst">GST number <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+        <input id="npGst" class="input" maxlength="15" style="text-transform:uppercase"></div>` : ''}
+      <button class="btn" id="npSave">Save ${type.toLowerCase()}</button>`);
+    setTimeout(() => $('#npName') && $('#npName').focus(), 50);
+    $('#npSave').onclick = async e => {
+      const name = $('#npName').value.trim();
+      if (!name) return toast('Enter the name.', 'err');
+      busy(e.currentTarget, true, 'Saving');
+      const r = await api('saveParty', { data: { name, type, phone: $('#npPhone').value, gstNo: $('#npGst') ? $('#npGst').value : '' } });
+      busy(e.currentTarget, false);
+      if (!r.ok) return;
+      await loadLookups(true);
+      closeSheet(); toast(type + ' added.', 'ok'); resolve(r.data.name);
+    };
+  });
+}
+
+/* ============================================================
+   EXPENSE / SPLIT BILL FORM
+   ============================================================ */
+async function renderExpenseForm(edit) {
+  view.innerHTML = skeletonForm();
+  const lk = await loadLookups();
+  if (!lk || S.route !== 'expense') return;
+  const L = S.cfg.labels;
+  const orderCats = lk.categories.filter(c => c.for === 'Order' && c.active).map(c => c.name);
+  const genCats = lk.categories.filter(c => c.for === 'General' && c.active).map(c => c.name);
+  const vendors = lk.parties.vendors.map(v => v.name);
+
+  // ---------- state ----------
+  const F = edit ? {
+    billId: edit.billId, date: edit.date, party: edit.party || '', billNo: edit.billNo || '', gstStatus: edit.gstStatus || 'No',
+    paidBy: edit.paidBy || 'Cash', billTotal: '', balanceCat: genCats[0] || '',
+    rows: edit.rows.map(r => ({ for: r.for, jobId: r.jobId, category: r.category, qty: r.qty, rate: r.rate,
+                                amount: (r.qty === '' || r.rate === '') ? r.amount : '', gstPct: r.gstPct })),
+  } : {
+    billId: null, date: todayIso(), party: '', billNo: '', gstStatus: 'No', paidBy: 'Cash', billTotal: '',
+    balanceCat: genCats.indexOf('Misc') !== -1 ? 'Misc' : (genCats[0] || ''), rows: [newRow()]
+  };
+  function newRow(prev) {
+    return prev ? { for: prev.for, jobId: '', category: prev.category, qty: '', rate: prev.rate, amount: '', gstPct: prev.gstPct }
+                : { for: lk.jobs.length ? 'Order' : 'General', jobId: '', category: '', qty: '', rate: '', amount: '', gstPct: 5 };
+  }
+  const rowAmt = r => (r.qty !== '' && r.rate !== '') ? r2(num(r.qty) * num(r.rate)) : r2(num(r.amount));
+  const rowTot = r => { const a = rowAmt(r); return F.gstStatus === 'No' ? a : r2(a * (1 + num(r.gstPct) / 100)); };
+
+  // ---------- view ----------
+  view.innerHTML = `
+    <div class="form-top"><h1>${edit ? 'Edit bill ' + esc(edit.billId) : 'Expense'}</h1></div>
+    <p class="lead" style="margin-bottom:12px">One bill can be split across many ${esc(L.jobs.toLowerCase())} and general expenses.</p>
+    <div class="ledger" style="margin-bottom:12px">
+      <div class="grid2">
+        <div class="field"><label for="xDate">Date</label><input id="xDate" type="date" class="input sm" max="${todayIso()}" value="${esc(F.date)}"></div>
+        <div class="field"><label for="xBillNo">Bill no.</label><input id="xBillNo" class="input sm" maxlength="30" value="${esc(F.billNo)}" placeholder="optional"></div>
+      </div>
+      <div class="field"><label for="xParty">Supplier <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+        <div style="display:flex;gap:8px"><input id="xParty" class="input sm" list="vendorList" value="${esc(F.party)}" placeholder="Type to search" autocomplete="off">
+        <button type="button" class="btn secondary" id="xAddParty" style="width:auto;height:44px;padding:0 14px;white-space:nowrap;flex:none">+ New</button></div>
+        <datalist id="vendorList">${vendors.map(v => `<option value="${esc(v)}">`).join('')}</datalist></div>
+      <div class="field"><label>GST bill?</label>
+        <div class="seg3" id="xGst">${['Yes', 'No', 'Pending'].map(k => `<button type="button" data-v="${k}" aria-pressed="${F.gstStatus === k}">${k}</button>`).join('')}</div></div>
+      <div class="field"><label>Paid by</label>
+        <div class="seg3" id="xPaid">${['Cash', 'Bank', 'Credit'].map(k => `<button type="button" data-v="${k}" aria-pressed="${F.paidBy === k}">${k}</button>`).join('')}</div></div>
+      <div class="field" style="margin-bottom:0"><label for="xBillTotal">Bill total <span style="font-weight:400;color:var(--muted)">(as printed, optional)</span></label>
+        <input id="xBillTotal" class="input sm" inputmode="decimal" value="${esc(F.billTotal)}" placeholder="Checks your rows add up"></div>
+    </div>
+    <div id="xRows"></div>
+    <button class="add-row" id="xAdd">+ Add row</button>
+    <div class="sticky-foot">
+      <div class="sum"><span>Total</span><b id="xSum">₹0</b></div>
+      <div class="match" id="xMatch"></div>
+      <button class="btn" id="xSave">${edit ? 'Save changes' : 'Save expense'}</button>
+    </div>`;
+
+  const rowsEl = $('#xRows');
+  const catOptions = (forType, sel) => {
+    const list = forType === 'Order' ? orderCats : genCats;
+    return `<option value="">Select category</option>` + list.map(c => `<option ${c === sel ? 'selected' : ''}>${esc(c)}</option>`).join('');
+  };
+  const jobOptions = sel => `<option value="">Select ${esc(L.job.toLowerCase())}</option>` + lk.jobs.map(j => `<option value="${esc(j.id)}" ${j.id === sel ? 'selected' : ''}>${esc(j.label)}</option>`).join('');
+  const gstOptions = sel => [0, 5, 12, 18, 28, 40].map(g => `<option value="${g}" ${Number(sel) === g ? 'selected' : ''}>${g}%</option>`).join('');
+
+  function drawRows() {
+    rowsEl.innerHTML = F.rows.map((r, i) => `
+      <div class="xrow ${r.for === 'General' ? 'general' : ''}" data-i="${i}">
+        <div class="head"><span class="n">${i + 1}</span>
+          <div class="seg">${['Order', 'General'].map(k => `<button type="button" data-for="${k}" aria-pressed="${r.for === k}">${k === 'Order' ? esc(L.job) : 'General'}</button>`).join('')}</div>
+          ${F.rows.length > 1 ? `<button type="button" class="del" data-del aria-label="Remove row ${i + 1}">✕</button>` : ''}</div>
+        ${r.for === 'Order' ? `<div class="f"><label>${esc(L.job)}</label><select class="input sm" data-k="jobId">${jobOptions(r.jobId)}</select></div>` : ''}
+        <div class="f"><label>Category</label><select class="input sm" data-k="category">${catOptions(r.for, r.category)}</select></div>
+        <div class="grid3">
+          <div class="f"><label>Qty</label><input class="input sm" data-k="qty" inputmode="decimal" value="${esc(r.qty)}" placeholder="—"></div>
+          <div class="f"><label>Rate</label><input class="input sm" data-k="rate" inputmode="decimal" value="${esc(r.rate)}" placeholder="—"><div class="rate-hint" data-hint></div></div>
+          ${F.gstStatus === 'No' ? '<div></div>' : `<div class="f"><label>GST</label><select class="input sm" data-k="gstPct">${gstOptions(r.gstPct)}</select></div>`}
+        </div>
+        <div class="f" data-amtbox ${r.qty !== '' && r.rate !== '' ? 'style="display:none"' : ''}><label>Amount (if no qty × rate)</label>
+          <input class="input sm" data-k="amount" inputmode="decimal" value="${esc(r.amount)}"></div>
+        <div class="tot"><span data-amt></span><b data-tot></b></div>
+      </div>`).join('');
+    if (!lk.jobs.length) rowsEl.insertAdjacentHTML('afterbegin', `<p class="hint" style="margin:0 0 8px">No running ${esc(L.jobs.toLowerCase())} yet, so only General is useful now.</p>`);
+    updateTotals();
+  }
+
+  function updateTotals() {
+    let sum = 0;
+    rowsEl.querySelectorAll('.xrow').forEach(el => {
+      const r = F.rows[el.dataset.i], a = rowAmt(r), t = rowTot(r);
+      sum += t;
+      el.querySelector('[data-amt]').textContent = a ? (F.gstStatus === 'No' ? 'Amount' : 'Amount ' + inr(a) + ' + GST') : '';
+      el.querySelector('[data-tot]').textContent = a ? inr(t) : '';
+      el.querySelector('[data-amtbox]').style.display = (r.qty !== '' && r.rate !== '') ? 'none' : '';
+    });
+    sum = r2(sum);
+    $('#xSum').textContent = inr(sum);
+    const m = $('#xMatch'), bt = num(F.billTotal);
+    let cls = 'match', html = '';
+    if (F.billTotal) {
+      const bal = r2(bt - sum);
+      if (Math.abs(bal) <= 1) { cls = 'match ok'; html = '✓ Matches bill total'; }
+      else if (bal > 0) {
+        cls = 'match bad';
+        html = `${inr(bal)} not allocated. <button type="button" class="linkbtn" data-bal>Put in General</button>
+          <select data-balcat aria-label="General category for balance">${genCats.map(c => `<option ${c === F.balanceCat ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>`;
+      } else { cls = 'match bad'; html = `Rows are ${inr(-bal)} more than the bill. Please check.`; }
+    }
+    // update only when changed, so a tap on "Put in General" is never lost
+    if (m.dataset.html !== html) { m.className = cls; m.innerHTML = html; m.dataset.html = html; }
+  }
+
+  // ---------- events ----------
+  const seg = (id, key, after) => $(id).onclick = e => {
+    const b = e.target.closest('[data-v]'); if (!b) return;
+    F[key] = b.dataset.v;
+    $(id).querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+    if (after) after();
+  };
+  seg('#xGst', 'gstStatus', drawRows);
+  seg('#xPaid', 'paidBy');
+  $('#xDate').onchange = e => F.date = e.target.value;
+  $('#xBillNo').oninput = e => F.billNo = e.target.value;
+  $('#xParty').oninput = e => F.party = e.target.value;
+  $('#xParty').onchange = () => F.rows.forEach((r, i) => suggestRate(i));
+  $('#xBillTotal').oninput = e => { F.billTotal = e.target.value.replace(/[^\d.]/g, ''); updateTotals(); };
+  $('#xAddParty').onclick = async () => { const n = await addPartySheet('Vendor'); if (n) { F.party = n; renderExpenseFormKeep(); } };
+  $('#xAdd').onclick = () => { F.rows.push(newRow(F.rows[F.rows.length - 1])); drawRows();
+    const last = rowsEl.querySelector('.xrow:last-child select, .xrow:last-child input'); if (last) last.focus(); };
+
+  rowsEl.addEventListener('click', e => {
+    const el = e.target.closest('.xrow'); if (!el) return;
+    const i = Number(el.dataset.i);
+    const f = e.target.closest('[data-for]');
+    if (f) { F.rows[i].for = f.dataset.for; F.rows[i].category = ''; F.rows[i].jobId = ''; drawRows(); }
+    if (e.target.closest('[data-del]')) { F.rows.splice(i, 1); drawRows(); }
+  });
+  rowsEl.addEventListener('input', e => {
+    const k = e.target.dataset.k, el = e.target.closest('.xrow'); if (!k || !el) return;
+    let v = e.target.value;
+    if (['qty', 'rate', 'amount'].indexOf(k) !== -1) { v = v.replace(/[^\d.]/g, ''); e.target.value = v; }
+    F.rows[el.dataset.i][k] = v;
+    updateTotals();
+  });
+  rowsEl.addEventListener('change', e => {
+    const k = e.target.dataset.k, el = e.target.closest('.xrow'); if (!k || !el) return;
+    F.rows[el.dataset.i][k] = e.target.value;
+    if (k === 'category') suggestRate(Number(el.dataset.i));
+    updateTotals();
+  });
+
+  async function suggestRate(i) {
+    const r = F.rows[i]; if (!r || !r.category) return;
+    const res = await api('lastRate', { category: r.category, party: F.party }, { silent: true });
+    const el = rowsEl.querySelector(`.xrow[data-i="${i}"]`); if (!el || !res.ok || !res.data) return;
+    el.querySelector('[data-hint]').textContent = 'Last: ' + inr(res.data.rate);
+    if (r.rate === '') { r.rate = String(res.data.rate); el.querySelector('[data-k="rate"]').value = r.rate; }
+    if (F.gstStatus !== 'No' && res.data.gstPct && !edit) { r.gstPct = res.data.gstPct; const g = el.querySelector('[data-k="gstPct"]'); if (g) g.value = r.gstPct; }
+    updateTotals();
+  }
+
+  // keep state when coming back from "add supplier"
+  function renderExpenseFormKeep() { $('#xParty').value = F.party; $('#vendorList').innerHTML = S.lookups.parties.vendors.map(v => `<option value="${esc(v.name)}">`).join(''); }
+
+  async function save(extra = {}) {
+    for (let i = 0; i < F.rows.length; i++) {
+      const r = F.rows[i];
+      if (r.for === 'Order' && !r.jobId) return toast('Row ' + (i + 1) + ': select the ' + L.job.toLowerCase() + '.', 'err');
+      if (!r.category) return toast('Row ' + (i + 1) + ': select a category.', 'err');
+      if (!(rowAmt(r) > 0)) return toast('Row ' + (i + 1) + ': enter qty × rate, or the amount.', 'err');
+    }
+    const btn = $('#xSave');
+    const payload = {
+      data: { billId: F.billId, date: F.date, party: F.party, billNo: F.billNo, gstStatus: F.gstStatus, paidBy: F.paidBy,
+              billTotal: F.billTotal, putBalanceInGeneral: !!extra.putBalanceInGeneral, balanceCategory: F.balanceCat,
+              rows: F.rows.map(r => ({ for: r.for, jobId: r.jobId, category: r.category, qty: r.qty, rate: r.rate, amount: r.amount, gstPct: r.gstPct })) },
+      confirmDuplicate: !!extra.confirmDuplicate, confirmUnusualRate: !!extra.confirmUnusualRate
+    };
+    busy(btn, true, 'Saving');
+    const r = await api('saveBill', payload, { silent: true });
+    busy(btn, false);
+    if (r.ok) {
+      toast(r.data.message, 'ok');
+      S.lookups.at = 0;
+      if (edit) { S.editBill = null; return go('history'); }
+      // Fresh form; keep date + supplier + payment for the next bill
+      F.billNo = ''; F.billTotal = ''; F.rows = [newRow()];
+      $('#xBillNo').value = ''; $('#xBillTotal').value = '';
+      drawRows(); window.scrollTo(0, 0);
+      return;
+    }
+    if (r.code === 'DUP_WARN' && confirm(r.error)) return save(Object.assign({}, extra, { confirmDuplicate: true }));
+    if (r.code === 'RATE_WARN' && confirm(r.error)) return save(Object.assign({}, extra, { confirmUnusualRate: true }));
+    if (r.code === 'DUP_WARN' || r.code === 'RATE_WARN') return;
+    toast(r.error, 'err', helpLinkFor('expense'));
+  }
+  $('#xSave').onclick = () => save();
+  $('#xMatch').onclick = e => { if (e.target.closest('[data-bal]')) save({ putBalanceInGeneral: true }); };
+  $('#xMatch').onchange = e => { if (e.target.matches('[data-balcat]')) F.balanceCat = e.target.value; };
+
+  drawRows();
+}
+
+function skeletonForm() {
+  return `<div class="box skel" style="height:44px;min-height:0;margin-bottom:12px"></div>
+          <div class="box skel" style="height:300px;margin-bottom:12px"></div><div class="box skel" style="height:180px"></div>`;
 }
 
 /* ============================================================
