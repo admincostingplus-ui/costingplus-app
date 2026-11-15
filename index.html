@@ -338,6 +338,27 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .match select { height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); padding: 0 8px; font-size: 14px; }
 .linkbtn { border: 0; background: none; color: var(--ink); font-weight: 700; padding: 0; text-decoration: underline; }
 .rate-hint { font-size: 12px; color: var(--good); margin-top: 2px; min-height: 14px; }
+
+/* ============================================================
+   PART 3b · Wages / Advance / Settlement
+   ============================================================ */
+.t-settle { background: #5F3DC4; }
+.wt { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--ink-soft); border-radius: 10px; padding: 3px; margin-bottom: 8px; }
+.wt button { height: 34px; border: 0; border-radius: 8px; background: none; font-weight: 600; font-size: 13.5px; color: var(--muted); }
+.wt button[aria-pressed="true"] { background: var(--surface); color: var(--ink); }
+.wk-info { font-size: 14px; color: var(--muted); margin-top: 6px; min-height: 18px; }
+.wk-info b { color: var(--text); }
+.pick { display: flex; gap: 8px; }
+.pick .input { flex: 1; }
+.alloc-row { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.alloc-row:last-child { border-bottom: 0; }
+.alloc-row .l { flex: 1; min-width: 0; }
+.alloc-row .l small { display: block; color: var(--muted); font-size: 12.5px; }
+.alloc-row input { width: 110px; height: 40px; border-radius: 8px; border: 1.5px solid var(--line); padding: 0 8px; text-align: right; background: var(--surface); }
+.mini { height: 40px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font-weight: 700; padding: 0 10px; font-size: 13px; }
+.settle-sum { background: var(--ink-soft); border-radius: var(--radius-md); padding: 12px 14px; margin: 12px 0; font-size: 15px; }
+.settle-sum .r { display: flex; justify-content: space-between; padding: 3px 0; }
+.wa-preview { white-space: pre-wrap; background: var(--surface); border-radius: var(--radius-md); padding: 12px; font-size: 14px; box-shadow: var(--shadow); margin-bottom: 12px; }
 </style>
 </head>
 <body>
@@ -364,11 +385,11 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
    CONFIG — change only these lines
    ============================================================ */
 const API_URL = 'https://script.google.com/macros/s/AKfycbyRQlBtN7w2Ve2zpR-1s0uqHc1a_8XGPGttVcCZvseo4KGykTuFPPNK6VR9IokVmSLL/exec';
-const APP_VERSION = '1.0-p3a';
+const APP_VERSION = '1.0-p3b';
 const SUPPORT_WHATSAPP = '';   // e.g. '919xxxxxxxxx' — shown as "Need help?" on login
 // YouTube help links per screen (update when videos are recorded)
 const HELP = {
-  login: '', setup: '', home: '', entry: '', expense: '', history: '', reports: '', settings: ''
+  login: '', setup: '', home: '', entry: '', expense: '', wages: '', advance: '', settle: '', history: '', reports: '', settings: ''
 };
 
 /* ============================================================
@@ -465,7 +486,7 @@ function buildTabbar() {
 
 function go(route) { if (location.hash !== '#' + route) location.hash = route; else render(); }
 
-const ROUTES = ['home', 'entry', 'history', 'reports', 'settings', 'setup', 'expense'];
+const ROUTES = ['home', 'entry', 'history', 'reports', 'settings', 'setup', 'expense', 'wages', 'advance', 'settle'];
 function render() {
   if (!S.token) return renderLogin();
   if (!S.cfg) { loading(true); return; }
@@ -484,11 +505,12 @@ function render() {
   S.route = r;
   $('#topbar').classList.remove('hidden');
   $('#tabbar').classList.toggle('hidden', r === 'setup' && !S.cfg.setup.setupDone);
-  const tabKey = ['expense'].indexOf(r) !== -1 ? 'entry' : r;
+  const tabKey = ['expense', 'wages', 'advance', 'settle'].indexOf(r) !== -1 ? 'entry' : r;
+  if (r === 'settle' && !isOwner()) { location.hash = 'entry'; return; }
   document.querySelectorAll('#tabbar [data-go]').forEach(b => b.setAttribute('aria-current', b.dataset.go === tabKey ? 'page' : 'false'));
   updateTopbar();
   window.scrollTo(0, 0);
-  ({ home: renderHome, entry: renderEntry, history: renderHistory, reports: renderReports, settings: renderSettings, setup: renderSetup, expense: () => renderExpenseForm(S.editBill) })[r]();
+  ({ home: renderHome, entry: renderEntry, history: renderHistory, reports: renderReports, settings: renderSettings, setup: renderSetup, expense: () => renderExpenseForm(S.editBill), wages: renderWagesForm, advance: renderAdvanceForm, settle: renderSettle })[r]();
 }
 window.addEventListener('hashchange', () => { closeSheet(); render(); });
 
@@ -1003,10 +1025,11 @@ function renderEntry() {
     ['Expense', 't-expense', ICON.bill, 'Expense', 'Bills, split bills, general'],
     ['Labour', 't-wages', ICON.people, 'Wages', 'Piece, daily, sampling'],
     ['Advance', 't-advance', ICON.wallet, 'Advance', 'Cash to worker'],
+    ['Settle', 't-settle', ICON.wallet, 'Settle wages', 'Weekly / partial pay'],
     ['Production', 't-prod', ICON.box, 'Production', 'Output & dispatch'],
     ['Order', 't-order', ICON.order, 'New ' + L.job.toLowerCase(), 'Customer, qty, price'],
     ['Quote', 't-quote', ICON.quote, 'Quote', 'Cost → price']
-  ].filter(t => (t[0] !== 'Quote' || isOwner()) && can(t[0] === 'Advance' ? 'Labour' : t[0]));
+  ].filter(t => (['Quote', 'Settle'].indexOf(t[0]) === -1 || isOwner()) && can(['Advance', 'Settle'].indexOf(t[0]) !== -1 ? 'Labour' : t[0]));
   view.innerHTML = `
     <h1>New entry</h1>
     <p class="lead">What do you want to add?</p>
@@ -1014,6 +1037,8 @@ function renderEntry() {
   view.querySelector('.tiles').onclick = e => {
     const b = e.target.closest('[data-form]'); if (!b) return;
     if (b.dataset.form === 'Expense') { S.editBill = null; return go('expense'); }
+    const map = { Labour: 'wages', Advance: 'advance', Settle: 'settle' };
+    if (map[b.dataset.form]) return go(map[b.dataset.form]);
     toast(b.querySelector('b').textContent + ' form comes in the next update.');
   };
 }
@@ -1077,6 +1102,9 @@ function addPartySheet(type) {
       <div class="field"><label for="npName">Name</label><input id="npName" class="input" maxlength="80"></div>
       <div class="field"><label for="npPhone">Phone <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
         <input id="npPhone" class="input" type="tel" inputmode="numeric" maxlength="10"></div>
+      ${type === 'Worker' ? `<div class="grid2"><div class="field"><label for="npWt">Wage type</label>
+        <select id="npWt" class="input sm"><option>Piece</option><option>Daily</option><option>Hourly</option></select></div>
+        <div class="field"><label for="npRate">Usual rate</label><input id="npRate" class="input sm" inputmode="decimal" placeholder="optional"></div></div>` : ''}
       ${type === 'Vendor' ? `<div class="field"><label for="npGst">GST number <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
         <input id="npGst" class="input" maxlength="15" style="text-transform:uppercase"></div>` : ''}
       <button class="btn" id="npSave">Save ${type.toLowerCase()}</button>`);
@@ -1085,7 +1113,8 @@ function addPartySheet(type) {
       const name = $('#npName').value.trim();
       if (!name) return toast('Enter the name.', 'err');
       busy(e.currentTarget, true, 'Saving');
-      const r = await api('saveParty', { data: { name, type, phone: $('#npPhone').value, gstNo: $('#npGst') ? $('#npGst').value : '' } });
+      const r = await api('saveParty', { data: { name, type, phone: $('#npPhone').value, gstNo: $('#npGst') ? $('#npGst').value : '',
+        wageType: $('#npWt') ? $('#npWt').value : '', defaultRate: $('#npRate') ? $('#npRate').value : '' } });
       busy(e.currentTarget, false);
       if (!r.ok) return;
       await loadLookups(true);
@@ -1301,6 +1330,344 @@ function skeletonForm() {
   return `<div class="box skel" style="height:44px;min-height:0;margin-bottom:12px"></div>
           <div class="box skel" style="height:300px;margin-bottom:12px"></div><div class="box skel" style="height:180px"></div>`;
 }
+
+
+/* ============================================================
+   WORKER PICKER (shared by wages / advance / settle)
+   ============================================================ */
+function workerPickerHtml(value) {
+  const ws = S.lookups.parties.workers;
+  return `<div class="field"><label for="wWorker">Worker / contractor</label>
+    <div class="pick"><input id="wWorker" class="input sm" list="workerList" value="${esc(value || '')}" placeholder="Type to search" autocomplete="off">
+    <button type="button" class="btn secondary" id="wAddWorker" style="width:auto;height:44px;padding:0 14px;white-space:nowrap;flex:none">+ New</button></div>
+    <datalist id="workerList">${ws.map(w => `<option value="${esc(w.name)}">`).join('')}</datalist>
+    <div class="wk-info" id="wInfo"></div></div>`;
+}
+function findWorker(name) { return S.lookups.parties.workers.find(w => w.name.toLowerCase() === String(name || '').trim().toLowerCase()); }
+async function workerBalanceText(name) {
+  const w = findWorker(name); if (!w) return '';
+  const r = await api('workerSummary', { worker: w.name }, { silent: true });
+  if (!r.ok) return '';
+  return `Pending wages <b>${inr(r.data.payable)}</b> · Advance <b>${inr(r.data.advanceOutstanding)}</b>`;
+}
+
+/* ============================================================
+   WAGES (WORK) FORM
+   ============================================================ */
+async function renderWagesForm() {
+  view.innerHTML = skeletonForm();
+  const lk = await loadLookups();
+  if (!lk || S.route !== 'wages') return;
+  const L = S.cfg.labels;
+  const procs = lk.processes.map(p => p.name);
+  const QTY = { Piece: 'Pieces', Daily: 'Days', Hourly: 'Hours' };
+  const W = { date: todayIso(), worker: '', rows: [] };
+  const workerObj = () => findWorker(W.worker);
+  const newRow = prev => prev
+    ? { for: prev.for, jobId: prev.jobId, wageType: prev.wageType, process: '', qty: '', rate: '', amount: '', note: '' }
+    : { for: lk.jobs.length ? 'Order' : 'General', jobId: '', wageType: (workerObj() || {}).wageType || L.defaultWageType || 'Piece',
+        process: '', qty: '', rate: '', amount: '', note: '' };
+  W.rows.push(newRow());
+  const rowAmt = r => r.wageType === 'OneTime' ? r2(num(r.amount)) : r2(num(r.qty) * num(r.rate));
+
+  view.innerHTML = `
+    <div class="form-top"><h1>Wages</h1>${isOwner() ? '<button class="mini" onclick="go(\'settle\')">Settle wages →</button>' : ''}</div>
+    <p class="lead" style="margin-bottom:12px">Work done: piece rate, daily, hourly or one-time (sampling).</p>
+    <div class="ledger" style="margin-bottom:12px">
+      <div class="field"><label for="wDate">Date</label><input id="wDate" type="date" class="input sm" max="${todayIso()}" value="${W.date}"></div>
+      ${workerPickerHtml('')}
+    </div>
+    <div id="wRows"></div>
+    <button class="add-row" id="wAdd">+ Add row</button>
+    <div class="sticky-foot">
+      <div class="sum"><span>Total wages</span><b id="wSum">₹0</b></div>
+      <button class="btn" id="wSave">Save wages</button>
+    </div>`;
+  const rowsEl = $('#wRows');
+  const jobOpts = sel => `<option value="">Select ${esc(L.job.toLowerCase())}</option>` + lk.jobs.map(j => `<option value="${esc(j.id)}" ${j.id === sel ? 'selected' : ''}>${esc(j.label)}</option>`).join('');
+  const procOpts = (sel, optional) => `<option value="">${optional ? 'Process (optional)' : 'Select process'}</option>` + procs.map(p => `<option ${p === sel ? 'selected' : ''}>${esc(p)}</option>`).join('');
+
+  function draw() {
+    rowsEl.innerHTML = W.rows.map((r, i) => `
+      <div class="xrow ${r.for === 'General' ? 'general' : ''}" data-i="${i}">
+        <div class="head"><span class="n">${i + 1}</span>
+          <div class="seg">${['Order', 'General'].map(k => `<button type="button" data-for="${k}" aria-pressed="${r.for === k}">${k === 'Order' ? esc(L.job) : 'General'}</button>`).join('')}</div>
+          ${W.rows.length > 1 ? `<button type="button" class="del" data-del aria-label="Remove row ${i + 1}">✕</button>` : ''}</div>
+        ${r.for === 'Order' ? `<div class="f"><label>${esc(L.job)}</label><select class="input sm" data-k="jobId">${jobOpts(r.jobId)}</select></div>` : ''}
+        <div class="wt">${[['Piece', 'Piece'], ['Daily', 'Daily'], ['Hourly', 'Hourly'], ['OneTime', 'One-time']].map(([k, l]) => `<button type="button" data-wt="${k}" aria-pressed="${r.wageType === k}">${l}</button>`).join('')}</div>
+        <div class="f"><label>Process</label><select class="input sm" data-k="process">${procOpts(r.process, r.wageType !== 'Piece')}</select></div>
+        ${r.wageType === 'OneTime' ? `
+          <div class="grid2"><div class="f"><label>What work?</label><input class="input sm" data-k="note" value="${esc(r.note)}" placeholder="e.g. Sampling" maxlength="60"></div>
+          <div class="f"><label>Amount</label><input class="input sm" data-k="amount" inputmode="decimal" value="${esc(r.amount)}"></div></div>` : `
+          <div class="grid2"><div class="f"><label>${QTY[r.wageType]}</label><input class="input sm" data-k="qty" inputmode="decimal" value="${esc(r.qty)}"></div>
+          <div class="f"><label>Rate</label><input class="input sm" data-k="rate" inputmode="decimal" value="${esc(r.rate)}"><div class="rate-hint" data-hint></div></div></div>
+          ${r.wageType !== 'Piece' ? `<div class="f"><label>Note <span style="font-weight:400">(optional)</span></label><input class="input sm" data-k="note" value="${esc(r.note)}" maxlength="60" placeholder="e.g. Sampling, cleaning"></div>` : ''}`}
+        <div class="tot"><span></span><b data-tot></b></div>
+      </div>`).join('');
+    totals();
+  }
+  function totals() {
+    let sum = 0;
+    rowsEl.querySelectorAll('.xrow').forEach(el => { const a = rowAmt(W.rows[el.dataset.i]); sum += a; el.querySelector('[data-tot]').textContent = a ? inr(a) : ''; });
+    $('#wSum').textContent = inr(r2(sum));
+  }
+  async function suggest(i) {
+    const r = W.rows[i], w = workerObj();
+    if (!r || !w || r.wageType === 'OneTime') return;
+    const res = await api('lastWageRate', { worker: w.name, process: r.process, wageType: r.wageType }, { silent: true });
+    const el = rowsEl.querySelector(`.xrow[data-i="${i}"]`); if (!el || !res.ok || !res.data) return;
+    el.querySelector('[data-hint]').textContent = (res.data.source === 'last' ? 'Last: ' : 'Usual: ') + inr(res.data.rate);
+    if (r.rate === '') { r.rate = String(res.data.rate); el.querySelector('[data-k="rate"]').value = r.rate; totals(); }
+  }
+
+  $('#wDate').onchange = e => W.date = e.target.value;
+  $('#wWorker').oninput = e => W.worker = e.target.value;
+  let lastWorker = null;
+  $('#wWorker').onchange = async () => {
+    const w = workerObj();
+    if ((w ? w.name : W.worker) === lastWorker) return;   // same worker → don't redraw rows
+    lastWorker = w ? w.name : W.worker;
+    $('#wInfo').innerHTML = w ? 'Loading balance…' : (W.worker ? '<span class="neg">Not in your list. Tap + New to add.</span>' : '');
+    if (!w) return;
+    W.rows.forEach(r => { if (!r.qty && !r.rate && !r.amount) r.wageType = w.wageType || r.wageType; });
+    draw(); W.rows.forEach((r, i) => suggest(i));
+    $('#wInfo').innerHTML = await workerBalanceText(w.name);
+  };
+  $('#wAddWorker').onclick = async () => {
+    const n = await addPartySheet('Worker');
+    if (!n) return;
+    W.worker = n; $('#wWorker').value = n; lastWorker = null;
+    $('#workerList').innerHTML = S.lookups.parties.workers.map(w => `<option value="${esc(w.name)}">`).join('');
+    $('#wWorker').dispatchEvent(new Event('change'));
+  };
+  $('#wAdd').onclick = () => { W.rows.push(newRow(W.rows[W.rows.length - 1])); draw(); };
+
+  rowsEl.addEventListener('click', e => {
+    const el = e.target.closest('.xrow'); if (!el) return;
+    const i = Number(el.dataset.i), r = W.rows[i];
+    const f = e.target.closest('[data-for]'), wt = e.target.closest('[data-wt]');
+    if (f) { r.for = f.dataset.for; r.jobId = ''; draw(); }
+    if (wt) { r.wageType = wt.dataset.wt; r.rate = ''; r.qty = ''; r.amount = ''; draw(); suggest(i); }
+    if (e.target.closest('[data-del]')) { W.rows.splice(i, 1); draw(); }
+  });
+  rowsEl.addEventListener('input', e => {
+    const k = e.target.dataset.k, el = e.target.closest('.xrow'); if (!k || !el) return;
+    let v = e.target.value;
+    if (['qty', 'rate', 'amount'].indexOf(k) !== -1) { v = v.replace(/[^\d.]/g, ''); e.target.value = v; }
+    W.rows[el.dataset.i][k] = v; totals();
+  });
+  rowsEl.addEventListener('change', e => {
+    const k = e.target.dataset.k, el = e.target.closest('.xrow'); if (!k || !el) return;
+    W.rows[el.dataset.i][k] = e.target.value;
+    if (k === 'process') suggest(Number(el.dataset.i));
+  });
+
+  $('#wSave').onclick = async () => {
+    const w = workerObj();
+    if (!w) return toast('Select the worker (or add with + New).', 'err');
+    for (let i = 0; i < W.rows.length; i++) {
+      const r = W.rows[i], n = 'Row ' + (i + 1) + ': ';
+      if (r.for === 'Order' && !r.jobId) return toast(n + 'select the ' + L.job.toLowerCase() + '.', 'err');
+      if (r.wageType === 'Piece' && !r.process) return toast(n + 'select the process.', 'err');
+      if (r.wageType === 'OneTime' && !r.process && !r.note.trim()) return toast(n + 'enter what the work was.', 'err');
+      if (!(rowAmt(r) > 0)) return toast(n + (r.wageType === 'OneTime' ? 'enter the amount.' : 'enter ' + QTY[r.wageType].toLowerCase() + ' and rate.'), 'err');
+    }
+    const btn = $('#wSave'); busy(btn, true, 'Saving');
+    const res = await api('saveWork', { data: { date: W.date, worker: w.name, rows: W.rows } });
+    busy(btn, false);
+    if (!res.ok) return;
+    toast(res.data.message, 'ok');
+    W.rows = [newRow()]; draw(); window.scrollTo(0, 0);
+    $('#wInfo').innerHTML = await workerBalanceText(w.name);
+  };
+  draw();
+}
+
+/* ============================================================
+   ADVANCE FORM
+   ============================================================ */
+async function renderAdvanceForm() {
+  view.innerHTML = skeletonForm();
+  const lk = await loadLookups();
+  if (!lk || S.route !== 'advance') return;
+  const A = { date: todayIso(), worker: '', amount: '', paidBy: 'Cash', note: '' };
+  view.innerHTML = `
+    <div class="form-top"><h1>Advance</h1></div>
+    <p class="lead" style="margin-bottom:12px">Cash given to a worker or contractor. It's adjusted at settlement, not counted as cost.</p>
+    <div class="ledger">
+      <div class="field"><label for="aDate">Date</label><input id="aDate" type="date" class="input sm" max="${todayIso()}" value="${A.date}"></div>
+      ${workerPickerHtml('')}
+      <div class="field"><label for="aAmt">Amount</label><input id="aAmt" class="input" inputmode="decimal" placeholder="₹"></div>
+      <div class="field"><label>Paid by</label><div class="segment" id="aPaid">
+        <button type="button" data-v="Cash" aria-pressed="true">Cash</button><button type="button" data-v="Bank" aria-pressed="false">Bank</button></div></div>
+      <div class="field"><label for="aNote">Note <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input id="aNote" class="input sm" maxlength="60"></div>
+      <button class="btn" id="aSave">Save advance</button>
+    </div>`;
+  $('#aDate').onchange = e => A.date = e.target.value;
+  $('#wWorker').oninput = e => A.worker = e.target.value;
+  $('#wWorker').onchange = async () => {
+    const w = findWorker(A.worker);
+    $('#wInfo').innerHTML = w ? 'Loading balance…' : (A.worker ? '<span class="neg">Not in your list. Tap + New to add.</span>' : '');
+    if (w) $('#wInfo').innerHTML = await workerBalanceText(w.name);
+  };
+  $('#wAddWorker').onclick = async () => {
+    const n = await addPartySheet('Worker'); if (!n) return;
+    A.worker = n; $('#wWorker').value = n;
+    $('#workerList').innerHTML = S.lookups.parties.workers.map(w => `<option value="${esc(w.name)}">`).join('');
+    $('#wWorker').dispatchEvent(new Event('change'));
+  };
+  $('#aAmt').oninput = e => { e.target.value = e.target.value.replace(/[^\d.]/g, ''); A.amount = e.target.value; };
+  $('#aNote').oninput = e => A.note = e.target.value;
+  $('#aPaid').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; A.paidBy = b.dataset.v;
+    $('#aPaid').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); };
+  $('#aSave').onclick = async e => {
+    const w = findWorker(A.worker);
+    if (!w) return toast('Select the worker (or add with + New).', 'err');
+    if (!(num(A.amount) > 0)) return toast('Enter the advance amount.', 'err');
+    busy(e.currentTarget, true, 'Saving');
+    const r = await api('saveAdvance', { data: { date: A.date, worker: w.name, amount: A.amount, paidBy: A.paidBy, note: A.note } });
+    busy(e.currentTarget, false);
+    if (!r.ok) return;
+    toast(r.data.message, 'ok');
+    A.amount = ''; A.note = ''; $('#aAmt').value = ''; $('#aNote').value = '';
+    $('#wInfo').innerHTML = await workerBalanceText(w.name);
+  };
+}
+
+/* ============================================================
+   SETTLEMENT (owner)
+   ============================================================ */
+async function renderSettle(preselect) {
+  view.innerHTML = skeletonForm();
+  const [lk, due] = await Promise.all([loadLookups(), api('workersDue', {})]);
+  if (!lk || !due.ok || S.route !== 'settle') return;
+  const L = S.cfg.labels;
+  view.innerHTML = `
+    <div class="form-top"><h1>Settle wages</h1></div>
+    <p class="lead" style="margin-bottom:12px">Weekly or partial payment. Deduct any part of the advance, or none.</p>
+    <div class="kpis">
+      <div class="kpi"><small>Total wages pending</small><b>${inr(due.data.totalPayable)}</b></div>
+      <div class="kpi"><small>Total advance given</small><b>${inr(due.data.totalAdvance)}</b></div>
+    </div>
+    ${due.data.items.length ? `<div class="sec-h">Workers with balance</div>
+      <div class="rows" id="sDue">${due.data.items.map(w => `<button class="row" data-w="${esc(w.worker)}">
+        <span class="l"><b>${esc(w.worker)}</b><small>Advance ${inr(w.advanceOutstanding)}</small></span>
+        <span class="rt"><b>${inr(w.payable)}</b><small>pending</small></span></button>`).join('')}</div>`
+      : emptyMsg('No pending wages or advances. All settled!')}
+    <div id="sPanel"></div>`;
+  if ($('#sDue')) $('#sDue').onclick = e => { const b = e.target.closest('[data-w]'); if (b) openWorker(b.dataset.w); };
+  if (preselect) openWorker(preselect);
+
+  async function openWorker(name) {
+    const panel = $('#sPanel');
+    panel.innerHTML = '<div class="box skel" style="height:260px;margin-top:14px"></div>';
+    const r = await api('workerSummary', { worker: name });
+    if (!r.ok) { panel.innerHTML = ''; return; }
+    const d = r.data;
+    const orders = d.orders.filter(o => o.unpaid > 0);
+    const P = { adj: '', cash: '', paidBy: 'Cash', mode: 'auto', alloc: {} };
+    const label = id => id ? L.job + ' ' + id : 'General work';
+    const work = d.sinceLastSettlement.work, adv = d.sinceLastSettlement.advances;
+
+    panel.innerHTML = `
+      <h2 id="sTitle">${esc(d.worker.name)}</h2>
+      <div class="kpis">
+        <div class="kpi"><small>Wages pending</small><b>${inr(d.payable)}</b></div>
+        <div class="kpi"><small>Advance outstanding</small><b>${inr(d.advanceOutstanding)}</b></div>
+      </div>
+      ${work.length || adv.length ? `<details class="bars" style="margin-bottom:12px"><summary style="font-weight:700;cursor:pointer">Since last settlement${d.sinceLastSettlement.lastSettlementDate ? ' (' + fmtDate(d.sinceLastSettlement.lastSettlementDate) + ')' : ''}: ${work.length} work, ${adv.length} advance</summary>
+        <div style="margin-top:8px">${work.map(w => `<div class="r" style="display:flex;justify-content:space-between;padding:4px 0;font-size:14px"><span>${fmtDate(w.date)} · ${esc(w.jobId ? L.job + ' ' + w.jobId : 'General')} · ${esc(w.process || w.note || w.wageType)}${w.qty ? ' · ' + w.qty + ' × ' + inr(w.rate) : ''}</span><b>${inr(w.amount)}</b></div>`).join('')}
+        ${adv.map(a => `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:14px;color:var(--rule)"><span>${fmtDate(a.date)} · Advance</span><b>${inr(a.amount)}</b></div>`).join('')}</div></details>` : ''}
+      <div class="ledger">
+        <div class="field"><label for="sAdj">Advance to deduct now</label>
+          <div class="pick"><input id="sAdj" class="input sm" inputmode="decimal" placeholder="0">
+          <button type="button" class="mini" id="sAdjAll" ${d.advanceOutstanding > 0 ? '' : 'disabled'}>All ${inr(d.advanceOutstanding)}</button></div>
+          <div class="hint">Leave 0 to carry the advance forward.</div></div>
+        <div class="field"><label>Pay for</label><div class="segment" id="sMode">
+          <button type="button" data-m="auto" aria-pressed="true">Oldest first</button><button type="button" data-m="pick" aria-pressed="false">Choose ${esc(L.jobs.toLowerCase())}</button></div></div>
+        <div id="sModeBox"></div>
+        <div class="field"><label>Paid by</label><div class="segment" id="sPaid">
+          <button type="button" data-v="Cash" aria-pressed="true">Cash</button><button type="button" data-v="Bank" aria-pressed="false">Bank</button></div></div>
+        <div class="settle-sum" id="sSum"></div>
+        <button class="btn" id="sSave">Save settlement</button>
+      </div>`;
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    const modeBox = $('#sModeBox');
+    function drawMode() {
+      modeBox.innerHTML = P.mode === 'auto'
+        ? `<div class="field"><label for="sCash">Cash paid now</label><div class="pick">
+             <input id="sCash" class="input sm" inputmode="decimal" value="${esc(P.cash)}" placeholder="0">
+             <button type="button" class="mini" id="sFull">Pay full</button></div>
+             <div class="hint">Settles the oldest unpaid ${esc(L.jobs.toLowerCase())} first.</div></div>`
+        : `<div class="rows" style="margin-bottom:12px">${orders.map(o => `<div class="alloc-row"><span class="l"><b>${esc(label(o.jobId))}</b>
+             <small>Unpaid ${inr(o.unpaid)} of ${inr(o.earned)}</small></span>
+             <button type="button" class="mini" data-full="${esc(o.jobId)}">Full</button>
+             <input inputmode="decimal" data-alloc="${esc(o.jobId)}" value="${esc(P.alloc[o.jobId] || '')}" placeholder="0"></div>`).join('') || emptyMsg('Nothing unpaid.')}</div>`;
+      if ($('#sCash')) $('#sCash').oninput = e => { e.target.value = e.target.value.replace(/[^\d.]/g, ''); P.cash = e.target.value; sum(); };
+      if ($('#sFull')) $('#sFull').onclick = () => { P.cash = String(Math.max(r2(d.payable - num(P.adj)), 0)); $('#sCash').value = P.cash; sum(); };
+      modeBox.querySelectorAll('[data-alloc]').forEach(inp => inp.oninput = e => {
+        e.target.value = e.target.value.replace(/[^\d.]/g, ''); P.alloc[e.target.dataset.alloc] = e.target.value; sum(); });
+      modeBox.querySelectorAll('[data-full]').forEach(b => b.onclick = () => {
+        const o = orders.find(x => x.jobId === b.dataset.full); P.alloc[o.jobId] = String(o.unpaid);
+        modeBox.querySelector(`[data-alloc="${CSS.escape(o.jobId)}"]`).value = P.alloc[o.jobId]; sum(); });
+      sum();
+    }
+    function calc() {
+      const adj = r2(num(P.adj));
+      if (P.mode === 'auto') { const cash = r2(num(P.cash)); return { adj, cash, total: r2(adj + cash) }; }
+      const total = r2(Object.values(P.alloc).reduce((s, v) => s + num(v), 0));
+      return { adj, cash: r2(total - adj), total };
+    }
+    function sum() {
+      const c = calc();
+      $('#sSum').innerHTML = `
+        <div class="r"><span>Wages settled</span><b>${inr(c.total)}</b></div>
+        <div class="r"><span>− Advance deducted</span><b>${inr(c.adj)}</b></div>
+        <div class="r" style="border-top:1px solid var(--line);margin-top:4px;padding-top:6px"><span><b>Cash to pay now</b></span><b class="${c.cash < 0 ? 'neg' : ''}">${inr(c.cash)}</b></div>
+        <div class="r" style="color:var(--muted)"><span>Pending after this</span><span>${inr(r2(d.payable - c.total))}</span></div>
+        <div class="r" style="color:var(--muted)"><span>Advance after this</span><span>${inr(r2(d.advanceOutstanding - c.adj))}</span></div>`;
+    }
+
+    $('#sAdj').oninput = e => { e.target.value = e.target.value.replace(/[^\d.]/g, ''); P.adj = e.target.value; sum(); };
+    $('#sAdjAll').onclick = () => { P.adj = String(d.advanceOutstanding); $('#sAdj').value = P.adj; sum(); };
+    $('#sMode').onclick = e => { const b = e.target.closest('[data-m]'); if (!b) return; P.mode = b.dataset.m;
+      $('#sMode').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); drawMode(); };
+    $('#sPaid').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; P.paidBy = b.dataset.v;
+      $('#sPaid').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); };
+
+    $('#sSave').onclick = async e => {
+      const c = calc();
+      if (c.adj > d.advanceOutstanding + 0.01) return toast('Advance to deduct is more than ' + inr(d.advanceOutstanding) + '.', 'err');
+      if (c.total <= 0) return toast('Enter the cash paid or the advance to deduct.', 'err');
+      if (c.total > d.payable + 0.01) return toast('More than pending wages (' + inr(d.payable) + '). Record the extra as an advance.', 'err');
+      if (c.cash < 0) return toast('Advance deducted is more than the amount chosen for ' + L.jobs.toLowerCase() + '.', 'err');
+      if (!confirm(`Settle ${d.worker.name}: pay ${inr(c.cash)}${c.adj ? ' + deduct advance ' + inr(c.adj) : ''}?`)) return;
+      const allocations = P.mode === 'pick' ? Object.keys(P.alloc).filter(k => num(P.alloc[k]) > 0).map(k => ({ jobId: k, amount: P.alloc[k] })) : [];
+      busy(e.currentTarget, true, 'Saving');
+      const res = await api('saveSettlement', { data: { date: todayIso(), worker: d.worker.name, cashPaid: c.cash, advanceAdjust: c.adj, paidBy: P.paidBy, allocations } });
+      busy(e.currentTarget, false);
+      if (!res.ok) return;
+      const x = res.data;
+      openSheet('Settlement ' + x.settlementId, `
+        <p class="pos" style="margin-top:0"><b>${esc(x.message)}</b></p>
+        <div class="sec-h">Payment advice</div>
+        <div class="wa-preview">${esc(x.whatsappText)}</div>
+        ${!x.whatsappLink ? '<p class="hint">No phone saved for this worker. Use Copy, or add the phone in Masters.</p>' : ''}
+        <button class="btn secondary" id="cpy">Copy text</button>`, null);
+      if (x.whatsappLink) {
+        const foot = document.createElement('footer');
+        foot.innerHTML = `<button class="btn wa">${ICON.chat} Send to ${esc(d.worker.name)}</button>`;
+        foot.querySelector('button').onclick = () => window.open(x.whatsappLink, '_blank', 'noopener');
+        $('#sheetBg .sheet').appendChild(foot);
+      }
+      $('#cpy').onclick = () => { navigator.clipboard && navigator.clipboard.writeText(x.whatsappText).then(() => toast('Copied.', 'ok')); };
+      renderSettleRefresh(d.worker.name);
+    };
+    drawMode();
+  }
+}
+function renderSettleRefresh(name) { S.lookups && (S.lookups.at = 0); if (S.route === 'settle') renderSettle(); }
 
 /* ============================================================
    START
