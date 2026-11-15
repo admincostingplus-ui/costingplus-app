@@ -359,6 +359,41 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .settle-sum { background: var(--ink-soft); border-radius: var(--radius-md); padding: 12px 14px; margin: 12px 0; font-size: 15px; }
 .settle-sum .r { display: flex; justify-content: space-between; padding: 3px 0; }
 .wa-preview { white-space: pre-wrap; background: var(--surface); border-radius: var(--radius-md); padding: 12px; font-size: 14px; box-shadow: var(--shadow); margin-bottom: 12px; }
+
+/* ============================================================
+   PART 3b+ · Petty cash
+   ============================================================ */
+.t-petty { background: #B45309; }
+.tabs { display: flex; gap: 4px; background: var(--ink-soft); border-radius: var(--radius-md); padding: 4px; margin-bottom: 14px; overflow-x: auto; }
+.tabs button { flex: 1; min-width: max-content; height: 40px; padding: 0 12px; border: 0; border-radius: var(--radius-sm); background: none; font-weight: 600; color: var(--muted); }
+.tabs button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.pc-card { background: var(--surface); border-radius: var(--radius-md); box-shadow: var(--shadow); padding: 12px 14px; margin-bottom: 12px; }
+.pc-card .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; margin-bottom: 8px; }
+.pc-card .top small { color: var(--muted); display: block; font-size: 13px; }
+.pc-line { display: flex; gap: 8px; align-items: center; padding: 7px 0; border-top: 1px dashed var(--line); font-size: 15px; }
+.pc-line .l { flex: 1; min-width: 0; }
+.pc-line .l small { display: block; color: var(--muted); font-size: 12.5px; }
+.pc-line input { width: 96px; height: 38px; border-radius: 8px; border: 1.5px solid var(--line); padding: 0 8px; text-align: right; background: var(--surface); }
+.pc-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; margin-top: 10px; }
+.pc-actions .btn { height: 46px; font-size: 16px; }
+.st { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: var(--ink-soft); color: var(--ink); }
+.st.Requested { background: #FFF3D6; color: #8A5A00; } .st.Approved, .st.Released { background: #E3F2FD; color: #0D47A1; }
+.st.Done { background: #E6F4EA; color: var(--good); } .st.Rejected, .st.Cancelled { background: #FDE7E9; color: var(--rule); }
+@media (prefers-color-scheme: dark) { .st.Requested { background: #3A2E10; color: #F2B53A; } .st.Approved, .st.Released { background: #16264A; color: #9AB8FF; } .st.Done { background: #133423; } .st.Rejected, .st.Cancelled { background: #3A1519; } }
+.approve-hero { background: var(--ink); color: #fff; border-radius: var(--radius-lg); padding: 16px; margin-bottom: 14px; display: flex; align-items: center; gap: 12px; }
+.approve-hero b { font-size: 28px; display: block; line-height: 1.1; }
+.approve-hero svg { width: 34px; height: 34px; flex: none; }
+
+/* Team & roles */
+.role-pick { display: grid; gap: 8px; }
+.role-pick button { text-align: left; padding: 12px 14px; border-radius: var(--radius-md); border: 1.5px solid var(--line); background: var(--surface); }
+.role-pick button b { display: block; }
+.role-pick button small { color: var(--muted); font-size: 13px; }
+.role-pick button[aria-pressed="true"] { border-color: var(--ink); background: var(--ink-soft); box-shadow: inset 4px 0 0 var(--ink); }
+.checks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.checks label { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); font-weight: 600; }
+.checks input { width: 20px; height: 20px; accent-color: var(--ink); }
+.off { opacity: .5; }
 </style>
 </head>
 <body>
@@ -385,11 +420,11 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
    CONFIG — change only these lines
    ============================================================ */
 const API_URL = 'https://script.google.com/macros/s/AKfycbyRQlBtN7w2Ve2zpR-1s0uqHc1a_8XGPGttVcCZvseo4KGykTuFPPNK6VR9IokVmSLL/exec';
-const APP_VERSION = '1.0-p3b';
+const APP_VERSION = '1.0-p3d';
 const SUPPORT_WHATSAPP = '';   // e.g. '919xxxxxxxxx' — shown as "Need help?" on login
 // YouTube help links per screen (update when videos are recorded)
 const HELP = {
-  login: '', setup: '', home: '', entry: '', expense: '', wages: '', advance: '', settle: '', history: '', reports: '', settings: ''
+  login: '', setup: '', home: '', entry: '', expense: '', wages: '', advance: '', settle: '', petty: '', approvals: '', history: '', reports: '', settings: ''
 };
 
 /* ============================================================
@@ -473,6 +508,8 @@ const TABS_OWNER = [['home', 'Home'], ['entry', 'Entry'], ['history', 'History']
 const TABS_STAFF = [['home', 'Home'], ['entry', 'Entry'], ['history', 'History'], ['settings', 'More']];
 
 function isOwner() { return S.user && S.user.role === 'Owner'; }
+function isApprover() { return S.user && S.user.role === 'Approver'; }
+function canApprove() { return isOwner() || isApprover(); }
 
 function buildTabbar() {
   const tabs = isOwner() ? TABS_OWNER : TABS_STAFF;
@@ -486,7 +523,7 @@ function buildTabbar() {
 
 function go(route) { if (location.hash !== '#' + route) location.hash = route; else render(); }
 
-const ROUTES = ['home', 'entry', 'history', 'reports', 'settings', 'setup', 'expense', 'wages', 'advance', 'settle'];
+const ROUTES = ['home', 'entry', 'history', 'reports', 'settings', 'setup', 'expense', 'wages', 'advance', 'settle', 'petty', 'approvals', 'team'];
 function render() {
   if (!S.token) return renderLogin();
   if (!S.cfg) { loading(true); return; }
@@ -505,19 +542,21 @@ function render() {
   S.route = r;
   $('#topbar').classList.remove('hidden');
   $('#tabbar').classList.toggle('hidden', r === 'setup' && !S.cfg.setup.setupDone);
-  const tabKey = ['expense', 'wages', 'advance', 'settle'].indexOf(r) !== -1 ? 'entry' : r;
+  const tabKey = ['expense', 'wages', 'advance', 'settle', 'petty'].indexOf(r) !== -1 ? 'entry' : r === 'approvals' ? 'home' : r === 'team' ? 'settings' : r;
+  if (r === 'approvals' && !canApprove()) { location.hash = 'home'; return; }
+  if (r === 'team' && !isOwner()) { location.hash = 'home'; return; }
   if (r === 'settle' && !isOwner()) { location.hash = 'entry'; return; }
   document.querySelectorAll('#tabbar [data-go]').forEach(b => b.setAttribute('aria-current', b.dataset.go === tabKey ? 'page' : 'false'));
   updateTopbar();
   window.scrollTo(0, 0);
-  ({ home: renderHome, entry: renderEntry, history: renderHistory, reports: renderReports, settings: renderSettings, setup: renderSetup, expense: () => renderExpenseForm(S.editBill), wages: renderWagesForm, advance: renderAdvanceForm, settle: renderSettle })[r]();
+  ({ home: renderHome, entry: renderEntry, history: renderHistory, reports: renderReports, settings: renderSettings, setup: renderSetup, expense: () => renderExpenseForm(S.editBill), wages: renderWagesForm, advance: renderAdvanceForm, settle: renderSettle, petty: renderPetty, approvals: renderApprovals, team: renderTeam })[r]();
 }
 window.addEventListener('hashchange', () => { closeSheet(); render(); });
 
 function updateTopbar() {
   const c = S.cfg;
   $('#tbBiz').textContent = (c && c.setup.businessName) || (S.business && S.business.name) || 'CostingPlus';
-  $('#tbSub').textContent = S.user ? S.user.name + ' · ' + (isOwner() ? 'Owner' : 'Staff') : '';
+  $('#tbSub').textContent = S.user ? S.user.name + ' · ' + (isOwner() ? 'Owner' : isApprover() ? 'Approver' : 'Staff') : '';
   const link = helpLinkFor(S.route);
   $('#helpBtn').classList.toggle('hidden', !link);
   $('#helpBtn').onclick = () => window.open(link, '_blank', 'noopener');
@@ -733,6 +772,7 @@ async function refreshConfig() { loading(true); const r = await api('getConfig')
    HOME (dashboard arrives in Part 2)
    ============================================================ */
 function renderHome() {
+  if (isApprover()) return renderApprovals(true);
   const left = S.business ? daysLeft(S.business.expiry) : null;
   S.period = S.period || 'thisMonth';
   view.innerHTML = `
@@ -774,6 +814,26 @@ async function loadDashboard() {
     dash.innerHTML = GROUPS.map(([h, keys]) => `<div class="group-h">${esc(h)}</div><div class="boxes">${keys.map(k => byKey[k] ? boxHtml(byKey[k]) : '').join('')}</div>`).join('');
   }
   dash.onclick = e => { const b = e.target.closest('[data-key]'); if (b) openDetail(b.dataset.key, b.dataset.detail); };
+  loadPettyBoxes();
+}
+
+async function loadPettyBoxes() {
+  const r = await api('pcBalances', {}, { silent: true });
+  const dash = $('#dash'); if (!dash || !r.ok) return;
+  const d = r.data, me = d.staff.find(x => x.staffId === S.user.id) || { balance: 0 };
+  const bx = (key, title, value, sub, color, alert) => `<button class="box ${alert ? 'alert' : ''}" style="--c:${color}" data-pc="${key}">
+    <span class="t">${esc(title)}</span><span class="v">${esc(value)}</span><span class="s">${esc(sub)}</span></button>`;
+  const html = isOwner()
+    ? bx('approvals', 'Petty cash approvals', d.pendingApprovals, d.pendingApprovals ? inr(d.pendingAmount) : 'none pending', '#B45309', d.pendingApprovals > 0) +
+      bx('give', 'Cash to give staff', inr(d.toRelease), 'approved, not given', '#0E7490', d.toRelease > 0) +
+      bx('withstaff', 'Cash with staff', inr(d.cashWithStaff), d.owedToStaff ? inr(d.owedToStaff) + ' owed to staff' : 'carried forward', '#4D7C0F')
+    : bx('mine', 'My petty cash', inr(me.balance), me.balance < 0 ? 'company owes you' : 'cash in hand', '#B45309');
+  dash.insertAdjacentHTML('beforeend', `<div class="group-h">Petty cash</div><div class="boxes" id="pcBoxes">${html}</div>`);
+  $('#pcBoxes').onclick = e => {
+    const b = e.target.closest('[data-pc]'); if (!b) return;
+    if (b.dataset.pc === 'approvals') return go('approvals');
+    S.pettyTab = b.dataset.pc === 'mine' ? 'mine' : 'cash'; go('petty');
+  };
 }
 
 function pickDates() {
@@ -1026,6 +1086,7 @@ function renderEntry() {
     ['Labour', 't-wages', ICON.people, 'Wages', 'Piece, daily, sampling'],
     ['Advance', 't-advance', ICON.wallet, 'Advance', 'Cash to worker'],
     ['Settle', 't-settle', ICON.wallet, 'Settle wages', 'Weekly / partial pay'],
+    ['Petty', 't-petty', ICON.wallet, 'Petty cash', 'Request, claim, submit'],
     ['Production', 't-prod', ICON.box, 'Production', 'Output & dispatch'],
     ['Order', 't-order', ICON.order, 'New ' + L.job.toLowerCase(), 'Customer, qty, price'],
     ['Quote', 't-quote', ICON.quote, 'Quote', 'Cost → price']
@@ -1037,7 +1098,7 @@ function renderEntry() {
   view.querySelector('.tiles').onclick = e => {
     const b = e.target.closest('[data-form]'); if (!b) return;
     if (b.dataset.form === 'Expense') { S.editBill = null; return go('expense'); }
-    const map = { Labour: 'wages', Advance: 'advance', Settle: 'settle' };
+    const map = { Labour: 'wages', Advance: 'advance', Settle: 'settle', Petty: 'petty' };
     if (map[b.dataset.form]) return go(map[b.dataset.form]);
     toast(b.querySelector('b').textContent + ' form comes in the next update.');
   };
@@ -1065,6 +1126,8 @@ function renderSettings() {
         <small>${esc(S.cfg.setup.industry)} · ${esc(S.cfg.labels.unit)} · week starts ${S.cfg.setup.weekStart === 'Sun' ? 'Sunday' : 'Monday'}</small></span><span class="chev">›</span></button>` : ''}
       ${isOwner() ? `<button data-act="masters"><span class="ic">${ICON.people}</span><span class="tx"><b>Parties, categories, processes</b>
         <small>Customers, suppliers, workers</small></span><span class="chev">›</span></button>` : ''}
+      ${isOwner() ? `<button data-act="team"><span class="ic">${ICON.people}</span><span class="tx"><b>Team & roles</b>
+        <small>Add staff, approvers, partners · PINs</small></span><span class="chev">›</span></button>` : ''}
       <button data-act="help"><span class="ic">${ICON.play}</span><span class="tx"><b>Help videos</b><small>Tamil and English</small></span><span class="chev">›</span></button>
       ${SUPPORT_WHATSAPP ? `<a href="https://wa.me/${SUPPORT_WHATSAPP}" target="_blank" rel="noopener"><span class="ic">${ICON.chat}</span><span class="tx"><b>WhatsApp support</b><small>When videos don't answer it</small></span><span class="chev">›</span></a>` : ''}
       <button data-act="logout"><span class="ic" style="color:var(--rule)">${ICON.logout}</span><span class="tx"><b>Log out</b><small>${esc(S.user.name)}</small></span></button>
@@ -1074,6 +1137,7 @@ function renderSettings() {
     const b = e.target.closest('[data-act]'); if (!b) return;
     const a = b.dataset.act;
     if (a === 'setup') go('setup');
+    if (a === 'team') go('team');
     if (a === 'logout') { if (confirm('Log out of CostingPlus?')) logout(); }
     if (a === 'masters') toast('Masters screen comes in a later update.');
     if (a === 'help') toast('Help videos will be added soon.');
@@ -1668,6 +1732,325 @@ async function renderSettle(preselect) {
   }
 }
 function renderSettleRefresh(name) { S.lookups && (S.lookups.at = 0); if (S.route === 'settle') renderSettle(); }
+
+
+/* ============================================================
+   PETTY CASH
+   ============================================================ */
+const PC_STATUS_TEXT = { Requested: 'Waiting approval', Approved: 'Approved', Released: 'Cash given', Done: 'Done', Rejected: 'Rejected', Cancelled: 'Cancelled', Posting: 'Saving' };
+function pcLineText(l, L) {
+  return l.lineType === 'Advance' ? 'Advance → ' + esc(l.worker)
+       : esc(l.category) + ' · ' + (l.for === 'Order' ? esc(L.job) + ' ' + esc(l.jobId) : 'General');
+}
+function pcCardHtml(g, L, opts = {}) {
+  const amtCol = l => {
+    if (opts.edit === 'approve') return `<input inputmode="decimal" data-amt="${l.lineNo}" value="${l.amount}" aria-label="Approved amount line ${l.lineNo}">`;
+    if (opts.edit === 'submit') return `<input inputmode="decimal" data-amt="${l.lineNo}" value="${l.approvedAmt ?? l.amount}" aria-label="Paid amount line ${l.lineNo}">`;
+    const v = l.paidAmt !== null ? l.paidAmt : l.approvedAmt !== null ? l.approvedAmt : l.amount;
+    const cut = l.approvedAmt !== null && l.approvedAmt !== l.amount;
+    return `<b>${inr(v)}</b>${cut ? `<small style="display:block;color:var(--muted);text-decoration:line-through;font-size:12px">${inr(l.amount)}</small>` : ''}`;
+  };
+  return `<div class="pc-card" data-req="${esc(g.reqId)}">
+    <div class="top"><div><b>${esc(g.staff)}</b> · ${esc(g.reqId)}
+      <small>${fmtDate(g.date)} · ${g.mode === 'Claim' ? 'Already paid (claim)' : 'Needs cash first'}</small></div>
+      <span class="st ${esc(g.status)}">${esc(PC_STATUS_TEXT[g.status] || g.status)}</span></div>
+    ${g.lines.map(l => `<div class="pc-line"><span class="l">${pcLineText(l, L)}${l.note ? `<small>${esc(l.note)}</small>` : ''}</span><span style="text-align:right">${amtCol(l)}</span></div>`).join('')}
+    <div class="pc-line" style="font-weight:800"><span class="l">Total</span><span>${inr(g.status === 'Done' ? g.paidTotal : g.approvedTotal || g.total)}</span></div>
+    ${opts.actions || ''}</div>`;
+}
+
+/* ---------- Approvals (Approver home, owner via box) ---------- */
+async function renderApprovals(asHome) {
+  const L = S.cfg.labels;
+  view.innerHTML = `<h1>${asHome ? 'Vanakkam, ' + esc((S.user.name || '').split(' ')[0]) : 'Petty cash approvals'}</h1><div id="apBody">${skeleton(2)}</div>`;
+  const [list, bal] = await Promise.all([api('pcList', { status: 'Requested' }), api('pcBalances', {}, { silent: true })]);
+  const body = $('#apBody'); if (!body || !list.ok) return;
+  const items = list.data.items;
+  body.innerHTML = `
+    <div class="approve-hero">${ICON.wallet}<div><b>${items.length}</b>request${items.length === 1 ? '' : 's'} waiting for your approval${items.length ? ' · ' + inr(items.reduce((s, g) => s + g.total, 0)) : ''}</div></div>
+    ${items.length ? items.map(g => pcCardHtml(g, L, { edit: 'approve', actions: `<div class="pc-actions">
+        <button class="btn danger" data-act="reject">Reject</button><button class="btn" data-act="approve">Approve ${inr(g.total)}</button></div>` })).join('')
+      : emptyMsg('Nothing to approve right now.')}
+    ${bal.ok && bal.data.staff.length ? `<div class="sec-h" style="margin-top:18px">Cash with staff</div><div class="rows">${bal.data.staff.map(x => `<div class="row">
+      <span class="l"><b>${esc(x.name)}</b><small>${x.awaitingSubmit ? x.awaitingSubmit + ' to submit · ' : ''}${x.toRelease ? inr(x.toRelease) + ' approved, not given' : 'Given ' + inr(x.released) + ' · spent ' + inr(x.spent)}</small></span>
+      <span class="rt"><b class="${x.balance < 0 ? 'neg' : ''}">${inr(x.balance)}</b><small>${x.balance < 0 ? 'owed to staff' : 'in hand'}</small></span></div>`).join('')}</div>` : ''}`;
+
+  body.oninput = e => { if (e.target.dataset.amt !== undefined) {
+    e.target.value = e.target.value.replace(/[^\d.]/g, '');
+    const card = e.target.closest('[data-req]'), tot = [...card.querySelectorAll('[data-amt]')].reduce((s, i) => s + num(i.value), 0);
+    card.querySelector('[data-act="approve"]').textContent = 'Approve ' + inr(r2(tot));
+  } };
+  body.onclick = async e => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    const card = b.closest('[data-req]'), reqId = card.dataset.req;
+    if (b.dataset.act === 'reject') {
+      if (!confirm('Reject request ' + reqId + '?')) return;
+      busy(b, true, '…'); const r = await api('pcApprove', { reqId, decision: 'Reject' }); busy(b, false);
+      if (r.ok) { toast(r.data.message, 'ok'); renderApprovals(asHome); }
+      return;
+    }
+    const amounts = {}; card.querySelectorAll('[data-amt]').forEach(i => amounts[i.dataset.amt] = i.value);
+    busy(b, true, 'Approving'); const r = await api('pcApprove', { reqId, decision: 'Approve', amounts }); busy(b, false);
+    if (!r.ok) return;
+    toast(r.data.message + (r.data.warnings && r.data.warnings.length ? ' ⚠ ' + r.data.warnings.join(' | ') : ''), r.data.warnings && r.data.warnings.length ? 'err' : 'ok');
+    renderApprovals(asHome);
+  };
+}
+
+/* ---------- Petty cash screen: Request · My requests · Give cash (owner) ---------- */
+async function renderPetty() {
+  const tabs = [['new', 'New request'], ['mine', 'My requests']].concat(isOwner() ? [['cash', 'Give cash']] : []);
+  S.pettyTab = tabs.some(t => t[0] === S.pettyTab) ? S.pettyTab : 'new';
+  view.innerHTML = `<div class="form-top"><h1>Petty cash</h1>${canApprove() ? '<button class="mini" onclick="go(\'approvals\')">Approvals →</button>' : ''}</div>
+    <div class="tabs" id="pcTabs">${tabs.map(([k, l]) => `<button data-t="${k}" aria-pressed="${S.pettyTab === k}">${l}</button>`).join('')}</div>
+    <div id="pcBody">${skeletonForm()}</div>`;
+  $('#pcTabs').onclick = e => { const b = e.target.closest('[data-t]'); if (b) { S.pettyTab = b.dataset.t; renderPetty(); } };
+  ({ new: pettyNew, mine: pettyMine, cash: pettyCash })[S.pettyTab]($('#pcBody'));
+}
+
+async function pettyNew(body) {
+  const lk = await loadLookups(); if (!lk || S.route !== 'petty') return;
+  const bal = await api('pcBalances', {}, { silent: true });
+  const me = bal.ok ? (bal.data.staff.find(x => x.staffId === S.user.id) || { balance: 0 }) : { balance: 0 };
+  const L = S.cfg.labels;
+  const orderCats = lk.categories.filter(c => c.for === 'Order' && c.active).map(c => c.name);
+  const genCats = lk.categories.filter(c => c.for === 'General' && c.active).map(c => c.name);
+  const workers = lk.parties.workers.map(w => w.name);
+  const P = { mode: 'Plan', date: todayIso(), lines: [{ lineType: 'Advance', worker: '', for: 'General', jobId: '', category: '', amount: '', note: '' }] };
+
+  body.innerHTML = `
+    <div class="kpis"><div class="kpi"><small>Cash with you now</small><b class="${me.balance < 0 ? 'neg' : ''}">${inr(me.balance)}</b></div>
+      <div class="kpi"><small>${me.balance < 0 ? 'Company owes you' : 'Carried forward'}</small><b>${me.balance < 0 ? inr(-me.balance) : '✓'}</b></div></div>
+    <div class="ledger" style="margin-bottom:12px">
+      <div class="field"><label>Type</label><div class="segment" id="pMode">
+        <button type="button" data-v="Plan" aria-pressed="true">Need cash first</button><button type="button" data-v="Claim" aria-pressed="false">Already paid</button></div>
+        <div class="hint" id="pModeHint">Get approval and cash, then pay workers and expenses.</div></div>
+      <div class="field" style="margin-bottom:0"><label for="pDate">Date</label><input id="pDate" type="date" class="input sm" max="${todayIso()}" value="${P.date}"></div>
+    </div>
+    <datalist id="pcWorkers">${workers.map(w => `<option value="${esc(w)}">`).join('')}</datalist>
+    <div id="pLines"></div>
+    <button class="add-row" id="pAdd">+ Add line</button>
+    <div class="sticky-foot"><div class="sum"><span>Total</span><b id="pSum">₹0</b></div>
+      <button class="btn" id="pSave">Send for approval</button></div>`;
+
+  const linesEl = $('#pLines');
+  const jobOpts = sel => `<option value="">Select ${esc(L.job.toLowerCase())}</option>` + lk.jobs.map(j => `<option value="${esc(j.id)}" ${j.id === sel ? 'selected' : ''}>${esc(j.label)}</option>`).join('');
+  const catOpts = (f, sel) => `<option value="">Select category</option>` + (f === 'Order' ? orderCats : genCats).map(c => `<option ${c === sel ? 'selected' : ''}>${esc(c)}</option>`).join('');
+  function draw() {
+    linesEl.innerHTML = P.lines.map((l, i) => `
+      <div class="xrow ${l.lineType === 'Expense' && l.for === 'General' ? 'general' : ''}" data-i="${i}">
+        <div class="head"><span class="n">${i + 1}</span>
+          <div class="seg">${[['Advance', 'Worker advance'], ['Expense', 'Expense']].map(([k, t]) => `<button type="button" data-lt="${k}" aria-pressed="${l.lineType === k}">${t}</button>`).join('')}</div>
+          ${P.lines.length > 1 ? `<button type="button" class="del" data-del aria-label="Remove line ${i + 1}">✕</button>` : ''}</div>
+        ${l.lineType === 'Advance'
+          ? `<div class="f"><label>Worker / contractor</label><input class="input sm" data-k="worker" list="pcWorkers" value="${esc(l.worker)}" placeholder="Type to search" autocomplete="off"></div>`
+          : `<div class="wt" style="grid-template-columns:1fr 1fr">${['Order', 'General'].map(k => `<button type="button" data-for="${k}" aria-pressed="${l.for === k}">${k === 'Order' ? esc(L.job) : 'General'}</button>`).join('')}</div>
+             ${l.for === 'Order' ? `<div class="f"><label>${esc(L.job)}</label><select class="input sm" data-k="jobId">${jobOpts(l.jobId)}</select></div>` : ''}
+             <div class="f"><label>Category</label><select class="input sm" data-k="category">${catOpts(l.for, l.category)}</select></div>`}
+        <div class="grid2"><div class="f"><label>Amount</label><input class="input sm" data-k="amount" inputmode="decimal" value="${esc(l.amount)}"></div>
+          <div class="f"><label>Note</label><input class="input sm" data-k="note" value="${esc(l.note)}" maxlength="60" placeholder="${l.lineType === 'Advance' ? 'optional' : 'e.g. Buttons, petrol'}"></div></div>
+      </div>`).join('');
+    total();
+  }
+  const total = () => $('#pSum').textContent = inr(r2(P.lines.reduce((s, l) => s + num(l.amount), 0)));
+
+  $('#pMode').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; P.mode = b.dataset.v;
+    $('#pMode').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+    $('#pModeHint').textContent = P.mode === 'Plan' ? 'Get approval and cash, then pay workers and expenses.' : 'You already paid (own money or cash in hand). Entries are saved when approved.';
+    $('#pSave').textContent = P.mode === 'Plan' ? 'Send for approval' : 'Send claim for approval'; };
+  $('#pDate').onchange = e => P.date = e.target.value;
+  $('#pAdd').onclick = () => { const last = P.lines[P.lines.length - 1];
+    P.lines.push({ lineType: last.lineType, worker: '', for: last.for, jobId: '', category: last.lineType === 'Expense' ? '' : '', amount: '', note: '' }); draw(); };
+  linesEl.addEventListener('click', e => {
+    const el = e.target.closest('.xrow'); if (!el) return; const l = P.lines[el.dataset.i];
+    const lt = e.target.closest('[data-lt]'), f = e.target.closest('[data-for]');
+    if (lt) { l.lineType = lt.dataset.lt; draw(); }
+    if (f) { l.for = f.dataset.for; l.category = ''; l.jobId = ''; draw(); }
+    if (e.target.closest('[data-del]')) { P.lines.splice(Number(el.dataset.i), 1); draw(); }
+  });
+  linesEl.addEventListener('input', e => { const k = e.target.dataset.k, el = e.target.closest('.xrow'); if (!k || !el) return;
+    let v = e.target.value; if (k === 'amount') { v = v.replace(/[^\d.]/g, ''); e.target.value = v; }
+    P.lines[el.dataset.i][k] = v; total(); });
+  linesEl.addEventListener('change', e => { const k = e.target.dataset.k, el = e.target.closest('.xrow'); if (k && el) P.lines[el.dataset.i][k] = e.target.value; });
+
+  $('#pSave').onclick = async e => {
+    for (let i = 0; i < P.lines.length; i++) {
+      const l = P.lines[i], n = 'Line ' + (i + 1) + ': ';
+      if (l.lineType === 'Advance' && !findWorker(l.worker)) return toast(n + 'select a worker from the list (add new ones in Wages).', 'err');
+      if (l.lineType === 'Expense' && l.for === 'Order' && !l.jobId) return toast(n + 'select the ' + L.job.toLowerCase() + '.', 'err');
+      if (l.lineType === 'Expense' && !l.category) return toast(n + 'select a category.', 'err');
+      if (!(num(l.amount) > 0)) return toast(n + 'enter the amount.', 'err');
+    }
+    busy(e.currentTarget, true, 'Sending');
+    const r = await api('pcSaveRequest', { data: { mode: P.mode, date: P.date, lines: P.lines.map(l => Object.assign({}, l, { worker: l.lineType === 'Advance' ? findWorker(l.worker).name : '' })) } });
+    busy(e.currentTarget, false);
+    if (!r.ok) return;
+    toast(r.data.message, 'ok'); S.pettyTab = 'mine'; renderPetty();
+  };
+  draw();
+}
+
+async function pettyMine(body) {
+  const L = S.cfg.labels;
+  const [r, led] = await Promise.all([api('pcList', { status: 'All', mine: true, limit: 30 }), api('pcLedger', {}, { silent: true })]);
+  if (!r.ok || S.route !== 'petty') return;
+  const items = r.data.items;
+  body.innerHTML = `
+    ${led.ok ? `<div class="kpis"><div class="kpi"><small>Cash with you now</small><b class="${led.data.balance < 0 ? 'neg' : ''}">${inr(led.data.balance)}</b></div>
+      <div class="kpi"><small>Open requests</small><b>${items.filter(g => ['Requested', 'Approved', 'Released'].indexOf(g.status) !== -1).length}</b></div></div>` : ''}
+    ${items.length ? items.map(g => pcCardHtml(g, L, { actions:
+        g.canSubmit ? `<div class="pc-actions">${g.canCancel ? '<button class="btn secondary" data-act="cancel">Cancel</button>' : '<span></span>'}<button class="btn" data-act="submit">Submit payments</button></div>`
+        : g.canCancel ? `<div class="pc-actions"><button class="btn secondary" data-act="cancel">Cancel</button><span></span></div>` : '' })).join('')
+      : emptyMsg('No petty cash requests yet.')}
+    ${led.ok && led.data.items.length ? `<div class="sec-h">My cash book</div><div class="rows">${led.data.items.slice(0, 20).map(x => `<div class="row">
+      <span class="l"><b>${x.type === 'RELEASE' ? 'Cash received' : 'Paid out'}</b><small>${fmtDate(x.date)}${x.reqId ? ' · ' + esc(x.reqId) : ''}</small></span>
+      <span class="rt"><b class="${x.type === 'RELEASE' ? 'pos' : ''}">${x.type === 'RELEASE' ? '+' : '−'}${inr(x.amount)}</b><small>bal ${inr(x.balance)}</small></span></div>`).join('')}</div>` : ''}`;
+
+  body.onclick = async e => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    const reqId = b.closest('[data-req]').dataset.req, g = items.find(x => x.reqId === reqId);
+    if (b.dataset.act === 'cancel') {
+      if (!confirm('Cancel request ' + reqId + '?')) return;
+      const x = await api('pcCancel', { reqId }); if (x.ok) { toast(x.data.message, 'ok'); renderPetty(); }
+      return;
+    }
+    openSheet('Submit payments · ' + reqId, `
+      <p class="hint" style="margin-top:0">Enter what you actually paid. Put 0 if a line wasn't paid. Leftover cash stays with you for tomorrow.</p>
+      ${pcCardHtml(g, L, { edit: 'submit' })}
+      <button class="btn" id="pcSub">Submit to accounts</button>`);
+    $('#pcSub').onclick = async ev => {
+      const paid = {}; $('#sheetBg').querySelectorAll('[data-amt]').forEach(i => paid[i.dataset.amt] = i.value.replace(/[^\d.]/g, ''));
+      busy(ev.currentTarget, true, 'Submitting');
+      const x = await api('pcSubmit', { reqId, paid });
+      busy(ev.currentTarget, false);
+      if (!x.ok) return;
+      closeSheet(); toast(x.data.message, x.data.warnings && x.data.warnings.length ? 'err' : 'ok'); S.lookups && (S.lookups.at = 0); renderPetty();
+    };
+  };
+}
+
+async function pettyCash(body) {
+  const r = await api('pcBalances', {});
+  if (!r.ok || S.route !== 'petty') return;
+  const staff = r.data.staff;
+  body.innerHTML = `
+    <div class="kpis"><div class="kpi"><small>Approved, to give</small><b>${inr(r.data.toRelease)}</b></div>
+      <div class="kpi"><small>Cash with staff</small><b>${inr(r.data.cashWithStaff)}</b></div></div>
+    ${staff.length ? `<div class="rows">${staff.map(x => `<button class="row" data-s="${esc(x.staffId)}">
+      <span class="l"><b>${esc(x.name)}</b><small>In hand ${inr(x.balance)}${x.toRelease ? ' · approved ' + inr(x.toRelease) : ''}${x.pending ? ' · ' + x.pending + ' waiting approval' : ''}</small></span>
+      <span class="rt"><b>${inr(Math.max(r2(x.toRelease - Math.max(x.balance, 0)), 0))}</b><small>to give</small></span></button>`).join('')}</div>`
+      : emptyMsg('No staff petty cash yet.')}`;
+  body.onclick = e => {
+    const b = e.target.closest('[data-s]'); if (!b) return;
+    const x = staff.find(s => s.staffId === b.dataset.s);
+    const suggest = Math.max(r2(x.toRelease - Math.max(x.balance, 0)), 0);
+    openSheet('Give cash · ' + x.name, `
+      <div class="settle-sum" style="margin-top:0">
+        <div class="r"><span>Approved requests</span><b>${inr(x.toRelease)}</b></div>
+        <div class="r"><span>− Already with ${esc(x.name)}</span><b>${inr(Math.max(x.balance, 0))}</b></div>
+        ${x.balance < 0 ? `<div class="r"><span>+ Owed to ${esc(x.name)} (paid own money)</span><b>${inr(-x.balance)}</b></div>` : ''}
+      </div>
+      <div class="field"><label for="gAmt">Amount you are giving</label><input id="gAmt" class="input" inputmode="decimal" value="${r2(suggest + Math.max(-x.balance, 0)) || ''}"></div>
+      <div class="field"><label>Paid by</label><div class="segment" id="gPaid"><button type="button" data-v="Cash" aria-pressed="true">Cash</button><button type="button" data-v="Bank" aria-pressed="false">Bank</button></div></div>
+      <div class="field"><label for="gNote">Note <span style="font-weight:400;color:var(--muted)">(optional)</span></label><input id="gNote" class="input sm" maxlength="60"></div>
+      <button class="btn" id="gSave">Record cash given</button>`);
+    let paidBy = 'Cash';
+    $('#gPaid').onclick = ev => { const v = ev.target.closest('[data-v]'); if (!v) return; paidBy = v.dataset.v;
+      $('#gPaid').querySelectorAll('button').forEach(z => z.setAttribute('aria-pressed', z === v)); };
+    $('#gSave').onclick = async ev => {
+      const amount = $('#gAmt').value.replace(/[^\d.]/g, '');
+      if (!(num(amount) > 0)) return toast('Enter the amount.', 'err');
+      busy(ev.currentTarget, true, 'Saving');
+      const res = await api('pcRelease', { staffId: x.staffId, amount, paidBy, reqIds: x.toReleaseIds, note: $('#gNote').value });
+      busy(ev.currentTarget, false);
+      if (!res.ok) return;
+      closeSheet(); toast(res.data.message, 'ok'); renderPetty();
+    };
+  };
+}
+
+
+/* ============================================================
+   TEAM & ROLES (owner)
+   ============================================================ */
+const ROLE_INFO = {
+  Owner: 'Everything: profit, reports, wage settlement, give petty cash, settings.',
+  Approver: 'Approves petty cash requests. Sees staff cash. No profit figures.',
+  Staff: 'Adds entries in the forms you tick. Never sees profit.'
+};
+const FORM_LABELS = { Expense: 'Expense', Labour: 'Wages & advance', Production: 'Production', Order: 'New order', Petty: 'Petty cash' };
+
+async function renderTeam() {
+  view.innerHTML = `<div class="form-top"><h1>Team & roles</h1><button class="mini" id="tAdd">+ Add person</button></div>
+    <p class="lead">Each person logs in with their own mobile number and PIN.</p><div id="tBody">${skeleton(2)}</div>`;
+  const r = await api('listUsers');
+  if (!r.ok || S.route !== 'team') return;
+  const d = r.data;
+  const formsText = u => u.role === 'Owner' ? 'All access' : u.allowedForms === 'ALL' ? 'All forms' : u.allowedForms.split(',').map(f => FORM_LABELS[f] || f).join(', ');
+  $('#tBody').innerHTML = `<div class="rows">${d.items.map(u => `<button class="row ${u.active ? '' : 'off'}" data-u="${esc(u.userId)}">
+      <span class="l"><b>${esc(u.name)}${u.isMe ? ' (you)' : ''} <span class="tag ${u.active ? '' : 'red'}">${u.active ? esc(u.role) : 'Off'}</span></b>
+      <small>${esc(u.phone)} · ${esc(formsText(u))}${u.lastLogin ? ' · last login ' + fmtDate(u.lastLogin) : ' · never logged in'}</small></span>
+      <span class="chev">›</span></button>`).join('')}</div>`;
+  $('#tAdd').onclick = () => userSheet(null, d);
+  $('#tBody').onclick = e => { const b = e.target.closest('[data-u]'); if (b) userSheet(d.items.find(u => u.userId === b.dataset.u), d); };
+}
+
+function userSheet(u, d) {
+  const U = u ? { userId: u.userId, name: u.name, phone: u.phone, role: u.role, forms: u.allowedForms === 'ALL' ? d.forms.slice() : u.allowedForms.split(','), pin: '' }
+              : { userId: null, name: '', phone: '', role: 'Staff', forms: d.forms.slice(), pin: '' };
+  const draw = () => {
+    openSheet(u ? 'Edit ' + u.name : 'Add person', `
+      <div class="field"><label for="uName">Name</label><input id="uName" class="input sm" maxlength="60" value="${esc(U.name)}"></div>
+      <div class="field"><label for="uPhone">Mobile number</label><input id="uPhone" class="input sm" type="tel" inputmode="numeric" maxlength="10" value="${esc(U.phone)}"></div>
+      <div class="field"><label for="uPin">${u ? 'New PIN <span style="font-weight:400;color:var(--muted)">(only if changing mobile)</span>' : 'PIN (4–6 digits)'}</label>
+        <input id="uPin" class="input sm" inputmode="numeric" maxlength="6" value="${esc(U.pin)}" ${u && u.isMe ? 'placeholder="Use Reset PIN below"' : ''}></div>
+      <div class="field"><label>Role</label><div class="role-pick" id="uRole">${d.roles.map(r => `<button type="button" data-r="${r}" aria-pressed="${U.role === r}" ${u && u.isMe && r !== 'Owner' ? 'disabled' : ''}>
+        <b>${r}</b><small>${ROLE_INFO[r]}</small></button>`).join('')}</div></div>
+      ${U.role !== 'Owner' ? `<div class="field"><label>Can use these forms</label><div class="checks" id="uForms">${d.forms.map(f => `<label><input type="checkbox" value="${f}" ${U.forms.indexOf(f) !== -1 ? 'checked' : ''}>${FORM_LABELS[f]}</label>`).join('')}</div></div>` : ''}
+      <button class="btn" id="uSave">${u ? 'Save changes' : 'Add person'}</button>
+      ${u && !u.isMe ? `<div class="grid2" style="margin-top:10px"><button class="btn secondary" id="uPinReset">Reset PIN</button>
+        <button class="btn ${u.active ? 'danger' : 'secondary'}" id="uActive">${u.active ? 'Switch off login' : 'Switch on login'}</button></div>` : ''}
+      ${u && u.isMe ? `<button class="btn secondary" id="uPinReset" style="margin-top:10px">Change my PIN</button>` : ''}`);
+    const keep = () => { U.name = $('#uName').value; U.phone = $('#uPhone').value.replace(/\D/g, ''); U.pin = $('#uPin').value.replace(/\D/g, '');
+      if ($('#uForms')) U.forms = [...$('#uForms').querySelectorAll('input:checked')].map(i => i.value); };
+    $('#uRole').onclick = e => { const b = e.target.closest('[data-r]'); if (!b || b.disabled) return; keep(); U.role = b.dataset.r;
+      if (U.role === 'Approver' && !u) U.forms = ['Petty']; draw(); };
+    $('#uSave').onclick = async e => {
+      keep();
+      if (!U.name.trim()) return toast('Enter the name.', 'err');
+      if (U.phone.length !== 10) return toast('Enter a 10-digit mobile number.', 'err');
+      if (!u && !/^\d{4,6}$/.test(U.pin)) return toast('PIN must be 4 to 6 digits.', 'err');
+      busy(e.currentTarget, true, 'Saving');
+      const r = await api('saveUser', { data: { userId: U.userId, name: U.name, phone: U.phone, pin: U.pin, role: U.role, allowedForms: U.forms } });
+      busy(e.currentTarget, false);
+      if (!r.ok) return;
+      closeSheet(); toast(r.data.message, 'ok');
+      if (!u) shareLogin(U);
+      renderTeam();
+    };
+    if ($('#uPinReset')) $('#uPinReset').onclick = async () => {
+      const pin = prompt('New PIN for ' + u.name + ' (4–6 digits):'); if (pin === null) return;
+      if (!/^\d{4,6}$/.test(pin)) return toast('PIN must be 4 to 6 digits.', 'err');
+      const r = await api('resetUserPin', { userId: u.userId, pin }); if (r.ok) toast(r.data.message, 'ok');
+    };
+    if ($('#uActive')) $('#uActive').onclick = async () => {
+      if (u.active && !confirm('Switch off ' + u.name + '\'s login? Their past entries stay.')) return;
+      const r = await api('setUserActive', { userId: u.userId, active: !u.active });
+      if (r.ok) { closeSheet(); toast(r.data.message, 'ok'); renderTeam(); }
+    };
+  };
+  draw();
+}
+
+function shareLogin(U) {
+  const text = `Vanakkam ${U.name} 🙏\nYou can now use *CostingPlus* for ${(S.cfg && S.cfg.setup.businessName) || 'our business'}.\n\nOpen: ${location.origin + location.pathname}\nMobile: ${U.phone}\nPIN: ${U.pin}\n\nTip: Chrome menu ⋮ → Add to Home screen.`;
+  openSheet('Send login details', `<div class="wa-preview">${esc(text)}</div>
+    <p class="hint">The PIN is in this message. Send it only to ${esc(U.name)}.</p>`);
+  const foot = document.createElement('footer');
+  foot.innerHTML = `<button class="btn wa">${ICON.chat} Send on WhatsApp</button>`;
+  foot.querySelector('button').onclick = () => window.open('https://wa.me/91' + U.phone + '?text=' + encodeURIComponent(text), '_blank', 'noopener');
+  $('#sheetBg .sheet').appendChild(foot);
+}
 
 /* ============================================================
    START
