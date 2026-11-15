@@ -420,7 +420,7 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
    CONFIG — change only these lines
    ============================================================ */
 const API_URL = 'https://script.google.com/macros/s/AKfycbyRQlBtN7w2Ve2zpR-1s0uqHc1a_8XGPGttVcCZvseo4KGykTuFPPNK6VR9IokVmSLL/exec';
-const APP_VERSION = '1.0-p3d';
+const APP_VERSION = '1.0-p3e';
 const SUPPORT_WHATSAPP = '';   // e.g. '919xxxxxxxxx' — shown as "Need help?" on login
 // YouTube help links per screen (update when videos are recorded)
 const HELP = {
@@ -508,8 +508,8 @@ const TABS_OWNER = [['home', 'Home'], ['entry', 'Entry'], ['history', 'History']
 const TABS_STAFF = [['home', 'Home'], ['entry', 'Entry'], ['history', 'History'], ['settings', 'More']];
 
 function isOwner() { return S.user && S.user.role === 'Owner'; }
-function isApprover() { return S.user && S.user.role === 'Approver'; }
-function canApprove() { return isOwner() || isApprover(); }
+function userTokens() { return String((S.user && S.user.allowedForms) || 'ALL').split(',').map(x => x.trim()); }
+function canApprove() { return !!S.user && (userTokens().indexOf('Approve') !== -1 || S.user.role === 'Approver'); }
 
 function buildTabbar() {
   const tabs = isOwner() ? TABS_OWNER : TABS_STAFF;
@@ -556,7 +556,7 @@ window.addEventListener('hashchange', () => { closeSheet(); render(); });
 function updateTopbar() {
   const c = S.cfg;
   $('#tbBiz').textContent = (c && c.setup.businessName) || (S.business && S.business.name) || 'CostingPlus';
-  $('#tbSub').textContent = S.user ? S.user.name + ' · ' + (isOwner() ? 'Owner' : isApprover() ? 'Approver' : 'Staff') : '';
+  $('#tbSub').textContent = S.user ? S.user.name + ' · ' + (isOwner() ? 'Owner' : 'Staff') + (canApprove() ? ' · Approver' : '') : '';
   const link = helpLinkFor(S.route);
   $('#helpBtn').classList.toggle('hidden', !link);
   $('#helpBtn').onclick = () => window.open(link, '_blank', 'noopener');
@@ -772,7 +772,6 @@ async function refreshConfig() { loading(true); const r = await api('getConfig')
    HOME (dashboard arrives in Part 2)
    ============================================================ */
 function renderHome() {
-  if (isApprover()) return renderApprovals(true);
   const left = S.business ? daysLeft(S.business.expiry) : null;
   S.period = S.period || 'thisMonth';
   view.innerHTML = `
@@ -823,11 +822,14 @@ async function loadPettyBoxes() {
   const d = r.data, me = d.staff.find(x => x.staffId === S.user.id) || { balance: 0 };
   const bx = (key, title, value, sub, color, alert) => `<button class="box ${alert ? 'alert' : ''}" style="--c:${color}" data-pc="${key}">
     <span class="t">${esc(title)}</span><span class="v">${esc(value)}</span><span class="s">${esc(sub)}</span></button>`;
+  if (canApprove() && d.pendingApprovals > 0) dash.insertAdjacentHTML('afterbegin',
+    `<button class="approve-hero" style="width:100%;border:0;text-align:left" onclick="go('approvals')">${ICON.wallet}<div><b>${d.pendingApprovals}</b>petty cash request${d.pendingApprovals === 1 ? '' : 's'} waiting for your approval · ${inr(d.pendingAmount)}</div><span style="margin-left:auto;font-size:22px">›</span></button>`);
   const html = isOwner()
-    ? bx('approvals', 'Petty cash approvals', d.pendingApprovals, d.pendingApprovals ? inr(d.pendingAmount) : 'none pending', '#B45309', d.pendingApprovals > 0) +
+    ? (canApprove() ? bx('approvals', 'Petty cash approvals', d.pendingApprovals, d.pendingApprovals ? inr(d.pendingAmount) : 'none pending', '#B45309', d.pendingApprovals > 0) : '') +
       bx('give', 'Cash to give staff', inr(d.toRelease), 'approved, not given', '#0E7490', d.toRelease > 0) +
       bx('withstaff', 'Cash with staff', inr(d.cashWithStaff), d.owedToStaff ? inr(d.owedToStaff) + ' owed to staff' : 'carried forward', '#4D7C0F')
-    : bx('mine', 'My petty cash', inr(me.balance), me.balance < 0 ? 'company owes you' : 'cash in hand', '#B45309');
+    : bx('mine', 'My petty cash', inr(me.balance), me.balance < 0 ? 'company owes you' : 'cash in hand', '#B45309') +
+      (canApprove() ? bx('approvals', 'Petty cash approvals', d.pendingApprovals, d.pendingApprovals ? inr(d.pendingAmount) : 'none pending', '#7C2D12', d.pendingApprovals > 0) : '');
   dash.insertAdjacentHTML('beforeend', `<div class="group-h">Petty cash</div><div class="boxes" id="pcBoxes">${html}</div>`);
   $('#pcBoxes').onclick = e => {
     const b = e.target.closest('[data-pc]'); if (!b) return;
@@ -1079,8 +1081,8 @@ function planStrip(left) {
    ============================================================ */
 function renderEntry() {
   const L = S.cfg.labels;
-  const allowed = String(S.user.allowedForms || 'ALL');
-  const can = k => allowed === 'ALL' || allowed.split(',').map(s => s.trim()).indexOf(k) !== -1;
+  const tok = userTokens();
+  const can = k => tok.indexOf('ALL') !== -1 || tok.indexOf(k) !== -1;
   const tiles = [
     ['Expense', 't-expense', ICON.bill, 'Expense', 'Bills, split bills, general'],
     ['Labour', 't-wages', ICON.people, 'Wages', 'Piece, daily, sampling'],
@@ -1762,12 +1764,12 @@ function pcCardHtml(g, L, opts = {}) {
 /* ---------- Approvals (Approver home, owner via box) ---------- */
 async function renderApprovals(asHome) {
   const L = S.cfg.labels;
-  view.innerHTML = `<h1>${asHome ? 'Vanakkam, ' + esc((S.user.name || '').split(' ')[0]) : 'Petty cash approvals'}</h1><div id="apBody">${skeleton(2)}</div>`;
+  view.innerHTML = `<h1>Petty cash approvals</h1><div id="apBody">${skeleton(2)}</div>`;
   const [list, bal] = await Promise.all([api('pcList', { status: 'Requested' }), api('pcBalances', {}, { silent: true })]);
   const body = $('#apBody'); if (!body || !list.ok) return;
   const items = list.data.items;
   body.innerHTML = `
-    <div class="approve-hero">${ICON.wallet}<div><b>${items.length}</b>request${items.length === 1 ? '' : 's'} waiting for your approval${items.length ? ' · ' + inr(items.reduce((s, g) => s + g.total, 0)) : ''}</div></div>
+    <div class="approve-hero">${ICON.wallet}<div><b>${items.length}</b>request${items.length === 1 ? '' : 's'} waiting for approval${items.length ? ' · ' + inr(items.reduce((s, g) => s + g.total, 0)) : ''}</div></div>
     ${items.length ? items.map(g => pcCardHtml(g, L, { edit: 'approve', actions: `<div class="pc-actions">
         <button class="btn danger" data-act="reject">Reject</button><button class="btn" data-act="approve">Approve ${inr(g.total)}</button></div>` })).join('')
       : emptyMsg('Nothing to approve right now.')}
@@ -1974,9 +1976,8 @@ async function pettyCash(body) {
    TEAM & ROLES (owner)
    ============================================================ */
 const ROLE_INFO = {
-  Owner: 'Everything: profit, reports, wage settlement, give petty cash, settings.',
-  Approver: 'Approves petty cash requests. Sees staff cash. No profit figures.',
-  Staff: 'Adds entries in the forms you tick. Never sees profit.'
+  Owner: 'Partners: profit, reports, wage settlement, give petty cash, settings.',
+  Staff: 'Managers, supervisors, staff: entries in the forms you tick. Never sees profit.'
 };
 const FORM_LABELS = { Expense: 'Expense', Labour: 'Wages & advance', Production: 'Production', Order: 'New order', Petty: 'Petty cash' };
 
@@ -1986,9 +1987,9 @@ async function renderTeam() {
   const r = await api('listUsers');
   if (!r.ok || S.route !== 'team') return;
   const d = r.data;
-  const formsText = u => u.role === 'Owner' ? 'All access' : u.allowedForms === 'ALL' ? 'All forms' : u.allowedForms.split(',').map(f => FORM_LABELS[f] || f).join(', ');
+  const formsText = u => (u.role === 'Owner' ? 'All access' : u.allowedForms === 'ALL' ? 'All forms' : u.allowedForms.split(',').map(f => FORM_LABELS[f] || f).join(', '));
   $('#tBody').innerHTML = `<div class="rows">${d.items.map(u => `<button class="row ${u.active ? '' : 'off'}" data-u="${esc(u.userId)}">
-      <span class="l"><b>${esc(u.name)}${u.isMe ? ' (you)' : ''} <span class="tag ${u.active ? '' : 'red'}">${u.active ? esc(u.role) : 'Off'}</span></b>
+      <span class="l"><b>${esc(u.name)}${u.isMe ? ' (you)' : ''} <span class="tag ${u.active ? '' : 'red'}">${u.active ? esc(u.role) : 'Off'}</span>${u.canApprove && u.active ? '<span class="tag" style="background:#FFF3D6;color:#8A5A00">Approves</span>' : ''}</b>
       <small>${esc(u.phone)} · ${esc(formsText(u))}${u.lastLogin ? ' · last login ' + fmtDate(u.lastLogin) : ' · never logged in'}</small></span>
       <span class="chev">›</span></button>`).join('')}</div>`;
   $('#tAdd').onclick = () => userSheet(null, d);
@@ -1996,8 +1997,8 @@ async function renderTeam() {
 }
 
 function userSheet(u, d) {
-  const U = u ? { userId: u.userId, name: u.name, phone: u.phone, role: u.role, forms: u.allowedForms === 'ALL' ? d.forms.slice() : u.allowedForms.split(','), pin: '' }
-              : { userId: null, name: '', phone: '', role: 'Staff', forms: d.forms.slice(), pin: '' };
+  const U = u ? { userId: u.userId, name: u.name, phone: u.phone, role: u.role, forms: u.allowedForms === 'ALL' ? d.forms.slice() : u.allowedForms.split(','), pin: '', approve: !!u.canApprove }
+              : { userId: null, name: '', phone: '', role: 'Staff', forms: d.forms.slice(), pin: '', approve: false };
   const draw = () => {
     openSheet(u ? 'Edit ' + u.name : 'Add person', `
       <div class="field"><label for="uName">Name</label><input id="uName" class="input sm" maxlength="60" value="${esc(U.name)}"></div>
@@ -2007,21 +2008,24 @@ function userSheet(u, d) {
       <div class="field"><label>Role</label><div class="role-pick" id="uRole">${d.roles.map(r => `<button type="button" data-r="${r}" aria-pressed="${U.role === r}" ${u && u.isMe && r !== 'Owner' ? 'disabled' : ''}>
         <b>${r}</b><small>${ROLE_INFO[r]}</small></button>`).join('')}</div></div>
       ${U.role !== 'Owner' ? `<div class="field"><label>Can use these forms</label><div class="checks" id="uForms">${d.forms.map(f => `<label><input type="checkbox" value="${f}" ${U.forms.indexOf(f) !== -1 ? 'checked' : ''}>${FORM_LABELS[f]}</label>`).join('')}</div></div>` : ''}
+      <div class="field"><div class="switch-row"><div class="txt"><b>Can approve petty cash</b>
+        <small>Tick for whoever approves staff requests: a partner, manager or senior staff.</small></div>
+        <button type="button" class="switch" id="uApprove" role="switch" aria-checked="${U.approve}" aria-label="Can approve petty cash"></button></div></div>
       <button class="btn" id="uSave">${u ? 'Save changes' : 'Add person'}</button>
       ${u && !u.isMe ? `<div class="grid2" style="margin-top:10px"><button class="btn secondary" id="uPinReset">Reset PIN</button>
         <button class="btn ${u.active ? 'danger' : 'secondary'}" id="uActive">${u.active ? 'Switch off login' : 'Switch on login'}</button></div>` : ''}
       ${u && u.isMe ? `<button class="btn secondary" id="uPinReset" style="margin-top:10px">Change my PIN</button>` : ''}`);
     const keep = () => { U.name = $('#uName').value; U.phone = $('#uPhone').value.replace(/\D/g, ''); U.pin = $('#uPin').value.replace(/\D/g, '');
       if ($('#uForms')) U.forms = [...$('#uForms').querySelectorAll('input:checked')].map(i => i.value); };
-    $('#uRole').onclick = e => { const b = e.target.closest('[data-r]'); if (!b || b.disabled) return; keep(); U.role = b.dataset.r;
-      if (U.role === 'Approver' && !u) U.forms = ['Petty']; draw(); };
+    $('#uRole').onclick = e => { const b = e.target.closest('[data-r]'); if (!b || b.disabled) return; keep(); U.role = b.dataset.r; draw(); };
+    $('#uApprove').onclick = () => { keep(); U.approve = !U.approve; $('#uApprove').setAttribute('aria-checked', U.approve); };
     $('#uSave').onclick = async e => {
       keep();
       if (!U.name.trim()) return toast('Enter the name.', 'err');
       if (U.phone.length !== 10) return toast('Enter a 10-digit mobile number.', 'err');
       if (!u && !/^\d{4,6}$/.test(U.pin)) return toast('PIN must be 4 to 6 digits.', 'err');
       busy(e.currentTarget, true, 'Saving');
-      const r = await api('saveUser', { data: { userId: U.userId, name: U.name, phone: U.phone, pin: U.pin, role: U.role, allowedForms: U.forms } });
+      const r = await api('saveUser', { data: { userId: U.userId, name: U.name, phone: U.phone, pin: U.pin, role: U.role, allowedForms: U.forms, canApprove: U.approve } });
       busy(e.currentTarget, false);
       if (!r.ok) return;
       closeSheet(); toast(r.data.message, 'ok');
